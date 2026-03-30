@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-VibeCraft is a Spring Boot 4.1.0 application (Java 25, Maven) currently at initial-scaffold stage — a single empty `@SpringBootApplication` entry point with no controllers, services, or repositories yet.
+VibeCraft is a Spring Boot 4.1.0 application (Java 25, Maven), an AI-assisted project-building platform. The JPA entity layer is implemented (`entity`/`enums` packages — see [docs/README.md](docs/schema/README.md#entities--models) for the full schema); there are no controllers, services, or repositories yet, and no datasource is configured.
 
 - Base package: `com.java.vibecraft`
 - Entry point: [src/main/java/com/java/vibecraft/VibecraftApplication.java](src/main/java/com/java/vibecraft/VibecraftApplication.java)

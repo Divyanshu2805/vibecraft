@@ -18,4 +18,4 @@ Living documentation of the project, kept current with each commit. Reference fo
 
 ---
 
-_Last updated: 2026-03-30_
+_Last updated: 2026-03-30 (v1 ER diagram fixed; per-entity field documentation added)_

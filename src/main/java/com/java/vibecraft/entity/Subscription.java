@@ -13,6 +13,7 @@ import java.time.Instant;
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
+@Table(name = "subscriptions")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder

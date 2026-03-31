@@ -1,15 +1,17 @@
 package com.java.vibecraft.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
+@Table(name = "plans")
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Plan {
 
     @Id

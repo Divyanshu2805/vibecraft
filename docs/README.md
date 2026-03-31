@@ -19,4 +19,4 @@ Living documentation of the project, kept current with each commit. Reference fo
 
 ---
 
-_Last updated: 2026-03-30 (v2: all 13 entities implemented and documented, ER diagram updated to match)_
+_Last updated: 2026-03-30 (v2.1: docs re-synced to actual code; fixed missing `Preview` JPA annotations, missing `@Embeddable`/`equals`-`hashCode` on composite ID classes, and missing table names on `Plan`/`Subscription`)_

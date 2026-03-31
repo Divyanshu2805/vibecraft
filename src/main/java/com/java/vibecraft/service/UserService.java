@@ -1,7 +1,6 @@
-package com.codingshuttle.projects.lovable_clone.service;
+package com.java.vibecraft.service;
 
-import com.codingshuttle.projects.lovable_clone.dto.auth.UserProfileResponse;
-import org.jspecify.annotations.Nullable;
+import com.java.vibecraft.dto.auth.UserProfileResponse;
 
 public interface UserService {
     UserProfileResponse getProfile(Long userId);

@@ -1,11 +1,11 @@
-package com.codingshuttle.projects.lovable_clone.controller;
+package com.java.vibecraft.controller;
 
-import com.codingshuttle.projects.lovable_clone.dto.auth.AuthResponse;
-import com.codingshuttle.projects.lovable_clone.dto.auth.LoginRequest;
-import com.codingshuttle.projects.lovable_clone.dto.auth.SignupRequest;
-import com.codingshuttle.projects.lovable_clone.dto.auth.UserProfileResponse;
-import com.codingshuttle.projects.lovable_clone.service.AuthService;
-import com.codingshuttle.projects.lovable_clone.service.UserService;
+import com.java.vibecraft.dto.auth.AuthResponse;
+import com.java.vibecraft.dto.auth.LoginRequest;
+import com.java.vibecraft.dto.auth.SignupRequest;
+import com.java.vibecraft.dto.auth.UserProfileResponse;
+import com.java.vibecraft.service.AuthService;
+import com.java.vibecraft.service.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

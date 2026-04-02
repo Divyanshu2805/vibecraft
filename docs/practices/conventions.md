@@ -9,3 +9,6 @@
 - Role-based access via an enum-of-permission-sets pattern (`ProjectRole` → `Set<ProjectPermission>`) rather than a flat role string, so permission checks can test capability (`hasPermission(EDIT)`) instead of role identity.
 - Local dev history tracked in `DEVLOG.md` (gitignored); this file is the tracked, public-facing project doc.
 - Semantic, one-line commit messages (`feat:`, `fix:`, `docs:`, `chore:`, etc.).
+- Request/response DTOs are Java `record`s, one subpackage per domain under `dto`; validation via Bean Validation annotations (`@NotBlank`, `@Email`, `@Size`, `@NotNull`) plus `@Valid` on the controller parameter.
+- Services are defined as plain interfaces first (`XService`), with the controller depending only on the interface via `@RequiredArgsConstructor` — implementations are added later. Until an implementation exists, Spring can't start the context for any controller that depends on it.
+- Controllers consistently use `@RequiredArgsConstructor` for constructor injection; `AuthController` additionally uses `@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)` on its fields (the other controllers just declare fields `private final` directly — not yet made consistent across all controllers).

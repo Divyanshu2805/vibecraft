@@ -2,7 +2,7 @@ package com.java.vibecraft.controller;
 
 import com.java.vibecraft.dto.file.FileContentResponse;
 import com.java.vibecraft.dto.file.FileTreeResponse;
-import com.java.vibecraft.service.ProjectFileService;
+import com.java.vibecraft.service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/projects/{projectId}/files")
 public class FileController {
 
-    private final ProjectFileService projectFileService;
+    private final FileService projectFileService;
 
     @GetMapping
     public ResponseEntity<FileTreeResponse> getFileTree(@PathVariable Long projectId) {

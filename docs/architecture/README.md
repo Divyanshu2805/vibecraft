@@ -6,6 +6,7 @@
 - `entity` — the 13 JPA entities described above.
 - `enums` — the 6 domain enums described above.
 - `controller` — 6 REST controllers: `AuthController`, `ProjectController`, `ProjectMemberController`, `FileController`, `BillingController`, `UsageController` (see [APIs](../api/README.md#apis) above).
-- `service` — 8 service interfaces, one (or two, for auth) per controller — no implementations yet.
+- `service` — 8 service interfaces, one (or two, for auth) per controller.
+- `service.impl` — an `@Service` implementation of each interface above (`AuthServiceImpl`, `UserServiceImpl`, `ProjectServiceImpl`, `ProjectMemberServiceImpl`, `FileServiceImpl`, `PlanServiceImpl`, `SubscriptionServiceImpl`, `UsageServiceImpl`) — all currently stubs.
 - `dto` — request/response records, one subpackage per domain (`auth`, `project`, `member`, `file`, `subscription`).
 - No `repository` package yet.

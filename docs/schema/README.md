@@ -1,6 +1,6 @@
 # Entities / Models
 
-All 13 entities are implemented as JPA entities (no repository/service/controller layers yet — just the persistence layer). This section documents the schema **as implemented in code**, which is the source of truth; an earlier v1 sketch (drafted before any code existed) differed in several places — most notably, project ownership is now expressed purely through `ProjectMember` (no separate ownership table or `owner_id` column), and AI chat responses are composed of an ordered sequence of typed `ChatEvent` rows instead of a single JSON blob. Those differences are called out inline below for context, not as defects.
+All 13 entities are implemented as JPA entities (no repository layer yet — no Spring Data JPA repository exists, so nothing queries these entities directly today, even though controllers/services now exist above them). This section documents the schema **as implemented in code**, which is the source of truth; an earlier v1 sketch (drafted before any code existed) differed in several places — most notably, project ownership is now expressed purely through `ProjectMember` (no separate ownership table or `owner_id` column), and AI chat responses are composed of an ordered sequence of typed `ChatEvent` rows instead of a single JSON blob. Those differences are called out inline below for context, not as defects.
 
 ## Entity Relationship Diagram (v2)
 

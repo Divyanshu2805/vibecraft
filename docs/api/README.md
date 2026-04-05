@@ -1,6 +1,6 @@
 # APIs
 
-6 REST controllers exist, all delegating to service **interfaces with no implementation** — so none of these are actually callable end-to-end yet (Spring can't wire an interface with zero `@Service` beans). Every endpoint below also hardcodes `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet.
+6 REST controllers exist, all delegating to a `@Service`-annotated implementation, so the app now starts and every endpoint is reachable — but **every implementation is currently a stub** (returns `null`, an empty list, or does nothing), so nothing below returns real data yet. Every endpoint also hardcodes `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet.
 
 ## AuthController (`/api/auth`)
 
@@ -36,7 +36,7 @@
 | GET | `/api/projects/{projectId}/files` | — | `FileTreeResponse` (`List<FileNode>`) | |
 | GET | `/api/projects/{projectId}/files/content?path=` | — | `FileContentResponse` (`path`, `content`) | |
 
-`ProjectFileService` also declares `saveFile(projectId, filePath, fileContent, userId)`, but there's no controller endpoint for it yet.
+`FileService` (renamed from `ProjectFileService`) also declares `saveFile(projectId, filePath, fileContent, userId)`, but there's no controller endpoint for it yet.
 
 ## BillingController (no `@RequestMapping` prefix — full paths on each method)
 

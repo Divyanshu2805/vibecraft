@@ -3,6 +3,7 @@ package com.java.vibecraft.controller;
 import com.java.vibecraft.dto.subscription.*;
 import com.java.vibecraft.service.PlanService;
 import com.java.vibecraft.service.SubscriptionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +32,7 @@ public class BillingController {
 
     @PostMapping("/api/payments/checkout")
     public ResponseEntity<CheckoutResponse> createCheckoutResponse(
-            @RequestBody CheckoutRequest request
+            @RequestBody @Valid CheckoutRequest request
     ) {
         Long userId = 1L;
         return ResponseEntity.ok(subscriptionService.createCheckoutSessionUrl(request, userId));

@@ -19,4 +19,4 @@ Living documentation of the project, kept current with each commit. Reference fo
 
 ---
 
-_Last updated: 2026-04-07 (docs re-synced to actual code: documented the 6 new REST controllers, 8 service interfaces, and DTO layer under [APIs](api/README.md#apis); noted none of the services have implementations yet)_
+_Last updated: 2026-04-07 (datasource configured; all 8 service interfaces now have stub `@Service` implementations so the app starts; `ProjectFileService` renamed to `FileService`; JVM timezone forced to `Asia/Kolkata`; DB credentials externalized to env-var placeholders)_

@@ -6,9 +6,9 @@ _Last updated: 2026-04-07._
 |---|---|
 | Domain entities | 13 of 13 implemented — persistence layer only |
 | Repositories | Not started — no Spring Data JPA repository exists yet |
-| Services / business logic | 8 service interfaces defined (`AuthService`, `UserService`, `ProjectService`, `ProjectMemberService`, `ProjectFileService`, `PlanService`, `SubscriptionService`, `UsageService`) — **none have an implementation**, so the app can't actually start once a datasource exists (`No qualifying bean`) |
-| REST APIs | 6 controllers implemented (auth, projects, project members, project files, billing, usage — see [APIs](api/README.md#apis) below) — all delegate to the unimplemented services above, and all hardcode `Long userId = 1L` in place of a real authenticated principal |
-| Database | No datasource configured, no migrations — schema would be Hibernate-auto-generated once a datasource is added |
+| Services / business logic | All 8 service interfaces now have an `@Service` implementation in `service.impl` (`AuthServiceImpl`, `UserServiceImpl`, `ProjectServiceImpl`, `ProjectMemberServiceImpl`, `FileServiceImpl`, `PlanServiceImpl`, `SubscriptionServiceImpl`, `UsageServiceImpl`) — **but every method is a stub** (returns `null`, an empty list, or does nothing). The app starts now, but no endpoint does anything real yet. |
+| REST APIs | 6 controllers implemented (auth, projects, project members, project files, billing, usage — see [APIs](api/README.md#apis) below); every endpoint now resolves to a real (stub) service bean, so the app boots, but responses are effectively empty/`null` until the stubs are replaced with real logic. All still hardcode `Long userId = 1L` in place of a real authenticated principal. |
+| Database | PostgreSQL datasource configured (`application.yaml`), `ddl-auto: update` — schema is created/updated automatically on startup. Credentials are externalized via `${DB_USERNAME:User}`/`${DB_PASSWORD:Password}` placeholders (env var, falling back to the local dev default) rather than hardcoded, since this repo is public. No migration tool (Flyway/Liquibase) yet. |
 | Tests | Only the generated `contextLoads` smoke test |
 
-**Next up:** wire a PostgreSQL datasource, then implement the service layer (at minimum `AuthService`/`UserService`, since nothing else is reachable without login) and real authentication in place of the `userId = 1L` placeholder.
+**Next up:** replace the service stubs with real logic — starting with `AuthServiceImpl`/`UserServiceImpl` (password hashing, token generation, user lookup — needs a `UserRepository`, which doesn't exist yet), since nothing else is reachable without real login. Real authentication should also replace the `userId = 1L` placeholder in every controller.

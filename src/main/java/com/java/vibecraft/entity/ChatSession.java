@@ -17,7 +17,7 @@ import java.time.Instant;
 public class ChatSession {
 
     @EmbeddedId
-    private ChatSessionId id;
+    ChatSessionId id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId("projectId")
@@ -29,6 +29,8 @@ public class ChatSession {
     @JoinColumn(name = "user_id", nullable = false, updatable = false)
     User user;
 
+    String title;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     Instant createdAt;
@@ -36,5 +38,5 @@ public class ChatSession {
     @UpdateTimestamp
     Instant updatedAt;
 
-    Instant deletedAt; // soft delete
+    Instant deletedAt; //soft delete
 }

@@ -21,12 +21,15 @@ public class User {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    String username;
-    String password;
+    @Column(nullable = false, unique = true)
+    String email;
+
+    @Column(nullable = false)
+    String passwordHash;
+
     String name;
 
-    @Column(unique = true)
-    String stripeCustomerId;
+    String avatarUrl;
 
     @CreationTimestamp
     Instant createdAt;
@@ -35,5 +38,4 @@ public class User {
     Instant updatedAt;
 
     Instant deletedAt; //soft delete
-
 }

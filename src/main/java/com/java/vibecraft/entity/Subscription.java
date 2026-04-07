@@ -23,18 +23,20 @@ public class Subscription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(nullable = false, name = "user_id")
     User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(nullable = false, name = "plan_id")
     Plan plan;
 
     @Enumerated(value = EnumType.STRING)
+    @Column(nullable = false)
     SubscriptionStatus status;
 
-    String stripeSubscriptionId; //can be renamed to gatewaySubscriptionId
+    String stripeCustomerId;
+    String stripeSubscriptionId;
 
     Instant currentPeriodStart;
     Instant currentPeriodEnd;

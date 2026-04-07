@@ -11,21 +11,23 @@ import java.time.Instant;
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 @Table(name = "project_members")
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ProjectMember {
 
     @EmbeddedId
     ProjectMemberId id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId("projectId")
+    @JoinColumn(name = "project_id")
     Project project;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId("userId")
+    @JoinColumn(name = "user_id")
     User user;
 
     @Enumerated(EnumType.STRING)

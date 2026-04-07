@@ -19,4 +19,4 @@ Living documentation of the project, kept current with each commit. Reference fo
 
 ---
 
-_Last updated: 2026-04-07 (datasource configured; all 8 service interfaces now have stub `@Service` implementations so the app starts; `ProjectFileService` renamed to `FileService`; JVM timezone forced to `Asia/Kolkata`; DB credentials externalized to env-var placeholders)_
+_Last updated: 2026-04-07 (added Bean Validation constraints to all 6 request DTOs; fixed missing `@Valid` on `AuthController`/`BillingController` request bodies)_

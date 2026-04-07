@@ -5,7 +5,7 @@ import java.time.Instant;
 public record SubscriptionResponse(
         PlanResponse plan,
         String status,
-        Instant currentPeriodEnd,
+        Instant periodEnd,
         Long tokensUsedThisCycle
 ) {
 }

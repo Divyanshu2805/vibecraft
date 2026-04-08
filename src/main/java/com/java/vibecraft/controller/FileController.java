@@ -1,7 +1,7 @@
 package com.java.vibecraft.controller;
 
-import com.java.vibecraft.dto.file.FileContentResponse;
-import com.java.vibecraft.dto.file.FileTreeResponse;
+import com.java.vibecraft.dto.project.FileContentResponse;
+import com.java.vibecraft.dto.project.FileNode;
 import com.java.vibecraft.service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +16,7 @@ public class FileController {
     private final FileService projectFileService;
 
     @GetMapping
-    public ResponseEntity<FileTreeResponse> getFileTree(@PathVariable Long projectId) {
+    public ResponseEntity<FileNode> getFileTree(@PathVariable Long projectId) {
         Long userId = 1L;
         return ResponseEntity.ok(projectFileService.getFileTree(projectId, userId));
     }

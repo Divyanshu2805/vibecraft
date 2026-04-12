@@ -1,11 +1,12 @@
 # Entities / Models
 
-All 13 entities are implemented as JPA entities (no repository layer yet — no Spring Data JPA repository exists, so nothing queries these entities directly today, even though controllers/services now exist above them). This section documents the schema **as implemented in code**, which is the source of truth; an earlier v1 sketch (drafted before any code existed) differed in several places — most notably, project ownership is now expressed purely through `ProjectMember` (no separate ownership table or `owner_id` column), and AI chat responses are composed of an ordered sequence of typed `ChatEvent` rows instead of a single JSON blob. Those differences are called out inline below for context, not as defects.
+10 entity types are implemented as JPA entities. This section documents the schema **as implemented in code**, which is the source of truth. The design was simplified on 2026-04-26 (v3) from the previous implementation (v2): project ownership moved from a `ProjectMember`-role model back onto a direct `Project.owner` FK, `ProjectRole` dropped its permission-set design back to a plain `EDITOR`/`VIEWER` enum, `ChatMessage` dropped the `ChatEvent` child-entity design back to a `toolCalls` JSON string column, and `UsageLog` dropped the daily-counter design back to a per-action audit row. See [Differences from v2](#differences-from-v2) below.
 
-## Entity Relationship Diagram (v2)
+## Entity Relationship Diagram (v3)
 
 ```mermaid
 erDiagram
+    USER ||--o{ PROJECT : owns
     USER ||--o{ PROJECT_MEMBER : "is member of"
     USER ||--o{ CHAT_SESSION : participates
     USER ||--o{ SUBSCRIPTION : subscribes
@@ -13,19 +14,19 @@ erDiagram
 
     PROJECT ||--o{ PROJECT_MEMBER : "has members"
     PROJECT ||--o{ PROJECT_FILE : contains
-    PROJECT ||--o| PREVIEW : "has one active"
+    PROJECT ||--o{ PREVIEW : "has previews"
     PROJECT ||--o{ CHAT_SESSION : "has conversations"
+    PROJECT ||--o{ USAGE_LOG : "tracked by"
 
     PLAN ||--o{ SUBSCRIPTION : follows
     CHAT_SESSION ||--o{ CHAT_MESSAGE : contains
-    CHAT_MESSAGE ||--o{ CHAT_EVENT : "has events"
 
     USER {
         bigint id PK
-        string username
-        string password
+        string email UK
+        string passwordHash
         string name
-        string stripeCustomerId UK
+        string avatarUrl
         timestamp createdAt
         timestamp updatedAt
         timestamp deletedAt
@@ -34,6 +35,7 @@ erDiagram
     PROJECT {
         bigint id PK
         string name
+        bigint ownerId FK
         bool isPublic
         timestamp createdAt
         timestamp updatedAt
@@ -43,7 +45,7 @@ erDiagram
     PROJECT_MEMBER {
         bigint projectId PK, FK
         bigint userId PK, FK
-        string projectRole "OWNER, EDITOR, VIEWER"
+        string projectRole "EDITOR, VIEWER"
         timestamp invitedAt
         timestamp acceptedAt
     }
@@ -55,6 +57,8 @@ erDiagram
         string minioObjectKey
         timestamp createdAt
         timestamp updatedAt
+        bigint createdBy FK
+        bigint updatedBy FK
     }
 
     PREVIEW {
@@ -72,6 +76,7 @@ erDiagram
     CHAT_SESSION {
         bigint projectId PK, FK
         bigint userId PK, FK
+        string title
         timestamp createdAt
         timestamp updatedAt
         timestamp deletedAt
@@ -81,20 +86,11 @@ erDiagram
         bigint id PK
         bigint projectId FK
         bigint userId FK
-        string role "USER, ASSISTANT, SYSTEM, TOOL"
         text content
+        string role "USER, ASSISTANT, SYSTEM, TOOL"
+        text toolCalls
         int tokensUsed
         timestamp createdAt
-    }
-
-    CHAT_EVENT {
-        bigint id PK
-        bigint chatMessageId FK
-        string type "THOUGHT, MESSAGE, FILE_EDIT, TOOL_LOG"
-        int sequenceOrder
-        text content
-        string filePath
-        text metadata
     }
 
     SUBSCRIPTION {
@@ -102,6 +98,7 @@ erDiagram
         bigint userId FK
         bigint planId FK
         string status "ACTIVE, TRIALING, CANCELED, PAST_DUE, INCOMPLETE"
+        string stripeCustomerId
         string stripeSubscriptionId
         timestamp currentPeriodStart
         timestamp currentPeriodEnd
@@ -124,64 +121,61 @@ erDiagram
     USAGE_LOG {
         bigint id PK
         bigint userId FK
-        date date
+        bigint projectId FK
+        string action
         int tokensUsed
+        int durationMs
+        text metaData
+        timestamp createdAt
     }
 ```
 
-Fields are shown as Java entity field names (camelCase); Hibernate's default physical naming strategy converts these to `snake_case` actual column names (e.g. `stripeCustomerId` → `stripe_customer_id`).
+Fields are shown as Java entity field names (camelCase); Hibernate's default physical naming strategy converts these to `snake_case` actual column names (e.g. `passwordHash` → `password_hash`). `ownerId`/`createdBy`/`updatedBy` above are the FK columns behind the entity's actual `@ManyToOne` object references (`Project.owner`, `ProjectFile.createdBy`/`updatedBy`).
 
 ## Entity Details
 
-Common columns that recur across most entities: `id` (primary key, `Long`/`bigint`, `IDENTITY` strategy) and, via Hibernate's `@CreationTimestamp`/`@UpdateTimestamp`, `createdAt`/`updatedAt` lifecycle timestamps. `User`, `Project`, and `ChatSession` additionally carry a plain nullable `deletedAt` column for soft deletes — the row is kept and flagged rather than removed, so related history isn't orphaned by a delete. There's no `@SQLDelete`/`@Where` filter wired up yet, so soft-deleted rows aren't automatically excluded from queries — that filtering has to be done manually until it is.
+Common columns that recur across most entities: `id` (primary key, `Long`/`bigint`, `IDENTITY` strategy) and, via Hibernate's `@CreationTimestamp`/`@UpdateTimestamp`, `createdAt`/`updatedAt` lifecycle timestamps. `User`, `Project`, and `ChatSession` additionally carry a plain nullable `deletedAt` column for soft deletes — the row is kept and flagged rather than removed, so related history isn't orphaned by a delete. There's no `@SQLDelete`/`@Where` filter wired up yet, so soft-deleted rows aren't automatically excluded from queries — that filtering has to be done manually until it is (see `ProjectRepository.findAllAccessibleByUser` for an example: `WHERE p.deletedAt IS NULL`).
 
 ### USER
 
-An account holder on the platform — collaborates on projects, participates in AI chat sessions, and holds a billing subscription.
+An account holder on the platform — owns/collaborates on projects, participates in AI chat sessions, and holds a billing subscription.
 
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `username` | Login identifier. |
-| `password` | The login password (naming suggests it's stored hashed, though there's no `@Column` comment or hashing code yet to confirm). |
+| `email` | Login identifier — unique, not null. |
+| `passwordHash` | Hash of the login password — not null. |
 | `name` | Display name. |
-| `stripeCustomerId` | Stripe's customer ID for this user — unique; lives directly on `User` rather than only on `Subscription`, so a Stripe customer can exist before any subscription does. |
+| `avatarUrl` | Profile picture URL. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
 | `deletedAt` | Soft-delete timestamp — see note above. |
 
-> Differs from the earlier v1 sketch: no `email` field (uses `username` instead) and no `avatar_url`.
-
 ### PROJECT
 
-A workspace/app being built; can be collaborated on and optionally made public. Ownership is expressed entirely through `PROJECT_MEMBER` (see below) — there is no `owner_id` column on this table.
+A workspace/app being built; can be collaborated on and optionally made public.
 
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `name` | Project's display name. |
-| `isPublic` | Whether the project (and its preview) is visible to anyone, not just members. Defaults to `false`. |
+| `name` | Project's display name — not null. |
+| `owner` | The `User` who owns this project — `@ManyToOne`, not null, FK column `owner_id`. |
+| `isPublic` | Whether the project (and its preview) is visible to anyone, not just the owner/members. Defaults to `false`. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
 | `deletedAt` | Soft-delete timestamp. |
 
-The table also carries two composite indexes (`(updatedAt DESC, deletedAt)` and `(deletedAt, updatedAt DESC)`) plus a single-column index on `deletedAt` — aimed at a "list my non-deleted projects, most recently updated first" query pattern.
-
-> Differs from the earlier v1 sketch: no `owner_id` FK and no separate `PROJECT_OWNERSHIP` join table — see `PROJECT_MEMBER` below.
-
 ### PROJECT_MEMBER
 
-Both collaboration *and* ownership for a project — every project, including the owner's own access, is a row here.
+A collaborator invited onto a project — distinct from ownership, which lives on `Project.owner` directly.
 
 | Field | Meaning |
 |---|---|
 | `projectId` | Part of the composite primary key (`ProjectMemberId`); the project. |
-| `userId` | Part of the composite primary key; the member. |
-| `projectRole` | `OWNER`, `EDITOR`, or `VIEWER` — a `ProjectRole` enum. Each role maps to a fixed set of `ProjectPermission`s (see [Domain Vocabulary](#domain-vocabulary-enums)). |
+| `userId` | Part of the composite primary key; the collaborating member. |
+| `projectRole` | `EDITOR` (can modify the project) or `VIEWER` (read-only) — a plain `ProjectRole` enum. |
 | `invitedAt` | When the invite was sent. |
 | `acceptedAt` | When the invite was accepted. |
 
 `ProjectMemberId` (the `@EmbeddedId`) implements `Serializable` and `equals()`/`hashCode()` over both fields, as required for a JPA composite key to behave correctly in the persistence context.
-
-> Differs from the earlier v1 sketch: no `invited_by` FK (who sent the invite isn't recorded), and no separate `PROJECT_OWNERSHIP` table — ownership is expressed as the `OWNER` role here instead, which also means ownership can be transferred by changing a role rather than moving a row between two tables.
 
 ### PROJECT_FILE
 
@@ -190,12 +184,11 @@ A single file belonging to a project; its content lives in object storage, not t
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `projectId` | The project this file belongs to. |
-| `path` | The file's path within the project (e.g. `src/App.tsx`). |
+| `project` | The project this file belongs to — `@ManyToOne`, not null. |
+| `path` | The file's path within the project (e.g. `src/App.tsx`) — not null. |
 | `minioObjectKey` | Key locating the actual file content in MinIO object storage — this row is metadata, not the content. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
-
-> Differs from the earlier v1 sketch: no `created_by`/`updated_by` audit FKs, and `path` is no longer marked unique.
+| `createdBy` / `updatedBy` | The `User` who created/last modified this file — `@ManyToOne`, nullable. |
 
 ### PREVIEW
 
@@ -204,7 +197,7 @@ A live, running deployment of a project (`previews` table), so it can be viewed 
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `project` | FK to the project this preview runs (`project_id`, lazy-loaded). |
+| `project` | FK to the project this preview runs — `@ManyToOne`, not null, lazy-loaded. |
 | `namespace` | Kubernetes namespace the preview pod runs in. |
 | `podName` | The Kubernetes pod backing this preview. |
 | `previewUrl` | Public URL where the running preview can be viewed. |
@@ -220,42 +213,25 @@ An AI-assisted build conversation scoped to one project and the user who started
 |---|---|
 | `projectId` | Part of the composite primary key (`ChatSessionId`); the project being worked on. |
 | `userId` | Part of the composite primary key; the user having this conversation. |
+| `title` | Human-readable session title. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
 | `deletedAt` | Soft-delete timestamp. |
 
 `ChatSessionId` (the `@EmbeddedId`) is `@Embeddable`, implements `Serializable`, and has `equals()`/`hashCode()` over both fields — required for a JPA composite key to behave correctly (e.g. for `@MapsId` and persistence-context identity lookups).
 
-> Differs from the earlier v1 sketch: no `title` field.
-
 ### CHAT_MESSAGE
 
-A single message within a chat session — from the user or the AI assistant. An assistant's response isn't one blob of JSON tool-call data; it's a `content` string (user messages) plus an ordered list of `CHAT_EVENT` rows (assistant messages).
+A single message within a chat session — from the user or the AI assistant.
 
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
 | `chatSession` (`projectId` + `userId`) | Which chat session this message belongs to — FK to the composite `ChatSession` key. |
-| `role` | Who/what this message represents — `MessageRole` enum (`USER`, `ASSISTANT`, `SYSTEM`, `TOOL`). |
-| `content` | The message text — populated for `USER` messages, `NULL` for `ASSISTANT` messages (which use `events` instead). |
-| `events` | Ordered (`sequenceOrder`) list of `CHAT_EVENT` rows — populated for `ASSISTANT` messages, empty otherwise. |
-| `tokensUsed` | Token cost of this message, for usage metering. Defaults to `0`. |
+| `content` | The message text (`text` column). |
+| `role` | Who/what this message represents — `MessageRole` enum (`USER`, `ASSISTANT`, `SYSTEM`, `TOOL`), not null. |
+| `toolCalls` | JSON array of AI tool/function calls made in this message (`text` column, not `jsonb`) — a raw string, not a structured child entity. |
+| `tokensUsed` | Token cost of this message, for usage metering. |
 | `createdAt` | When the message was sent. |
-
-> Differs from the earlier v1 sketch: the `tool_calls`/`tool_call_id` JSON columns are gone — replaced by the `CHAT_EVENT` child entity below, a more structured way to represent a streamed, multi-step AI response.
-
-### CHAT_EVENT
-
-One step in an assistant's response — a thought, a chunk of message text, a file edit, or a tool-call log — kept in order so a multi-step AI turn can be replayed/rendered step by step instead of arriving as a single flat blob.
-
-| Field | Meaning |
-|---|---|
-| `id` | Primary key. |
-| `chatMessage` | The (assistant) `CHAT_MESSAGE` this event belongs to. |
-| `type` | `ChatEventType` enum — `THOUGHT`, `MESSAGE`, `FILE_EDIT`, or `TOOL_LOG`. |
-| `sequenceOrder` | Position within the message — events render/replay in this order. |
-| `content` | The event's text content. |
-| `filePath` | The file affected — populated only for `FILE_EDIT` events. |
-| `metadata` | Additional context for the event (stored as text, not `jsonb`). |
 
 ### SUBSCRIPTION
 
@@ -264,9 +240,10 @@ A user's billing subscription to a plan (`subscriptions` table), synced with Str
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `user` | The subscribing user. |
-| `plan` | Which `PLAN` this subscription is for. |
-| `status` | `SubscriptionStatus` enum (`ACTIVE`, `TRIALING`, `CANCELED`, `PAST_DUE`, `INCOMPLETE`). |
+| `user` | The subscribing user — `@ManyToOne`, not null. |
+| `plan` | Which `PLAN` this subscription is for — `@ManyToOne`, not null. |
+| `status` | `SubscriptionStatus` enum (`ACTIVE`, `TRIALING`, `CANCELED`, `PAST_DUE`, `INCOMPLETE`), not null. |
+| `stripeCustomerId` | Stripe's customer ID, tracked here (not on `User`). |
 | `stripeSubscriptionId` | Stripe's own ID for this subscription, used to reconcile with Stripe webhook events. |
 | `currentPeriodStart` / `currentPeriodEnd` | The current billing cycle's date range. |
 | `cancelAtPeriodEnd` | Whether the subscription is set to cancel at the end of the current period rather than immediately. Defaults to `false`. |
@@ -279,73 +256,61 @@ A billing tier defining what a subscriber gets — quotas and limits (`plans` ta
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `name` | Plan display name (e.g. Free, Pro). |
+| `name` | Plan display name (e.g. Free, Pro) — not null. |
 | `stripePriceId` | Stripe's price ID for this plan — unique, used when creating a checkout session/subscription. |
 | `maxProjects` | How many projects a user on this plan may have. |
-| `maxTokensPerDay` | Daily AI token budget for this plan — enforced via `USAGE_LOG`. |
+| `maxTokensPerDay` | Daily AI token budget for this plan. |
 | `maxPreviews` | How many concurrent live previews this plan allows. |
 | `unlimitedAi` | Whether this plan bypasses the daily token budget entirely (ignore `maxTokensPerDay` if true). |
 | `active` | Whether this plan is currently offered/selectable. |
 
-> Differs from the earlier v1 sketch: no `features` JSON column, and no `createdAt`/`updatedAt` timestamps at all.
-
 ### USAGE_LOG
 
-A per-user, per-day token counter for daily quota enforcement.
+A per-action audit/usage record — one row per billable action a user performs.
 
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `userId` | Which user this counter belongs to (plain `Long`, not a JPA `@ManyToOne` — a deliberately lightweight column for a high-write counter table). |
-| `date` | The day this row counts — combined with `userId` under a unique constraint, so there's exactly one row per user per day. |
-| `tokensUsed` | Running total of tokens the user has consumed that day, checked against `PLAN.maxTokensPerDay`. |
-
-> Differs from the earlier v1 sketch, which envisioned a per-action audit log (`project_id`, `action`, `duration_ms`, `metadata`, `created_at`): this is now a daily aggregate counter instead — no project scoping, no per-action detail, no `createdAt`.
+| `user` | Which user performed the action — `@ManyToOne`, not null. |
+| `project` | Which project it was performed on — `@ManyToOne`, not null. |
+| `action` | What was done (e.g. `ai_generate`, `file_create`). |
+| `tokensUsed` | AI tokens consumed by this action, if any. |
+| `durationMs` | How long the action took, in milliseconds. |
+| `metaData` | Additional context about the action (JSON, stored as `text`). |
+| `createdAt` | When the action occurred. |
 
 ## Domain Vocabulary (Enums)
 
 | Enum | Values | Used by |
 |---|---|---|
-| `ProjectRole` | `OWNER`, `EDITOR`, `VIEWER` — each maps to a fixed `Set<ProjectPermission>` | `ProjectMember.projectRole` |
-| `ProjectPermission` | `VIEW`, `EDIT`, `DELETE`, `MANAGE_MEMBERS`, `VIEW_MEMBERS` (each carries a string `value`, e.g. `"project:edit"`) | `ProjectRole`'s permission sets |
+| `ProjectRole` | `EDITOR`, `VIEWER` | `ProjectMember.projectRole` |
 | `MessageRole` | `USER`, `ASSISTANT`, `SYSTEM`, `TOOL` | `ChatMessage.role` |
-| `ChatEventType` | `THOUGHT`, `MESSAGE`, `FILE_EDIT`, `TOOL_LOG` | `ChatEvent.type` |
 | `PreviewStatus` | `CREATING`, `RUNNING`, `FAILED`, `TERMINATED` | `Preview.status` |
 | `SubscriptionStatus` | `ACTIVE`, `TRIALING`, `CANCELED`, `PAST_DUE`, `INCOMPLETE` | `Subscription.status` |
 
-`ProjectRole`'s permission mapping:
+## Differences from v2
 
-| Role | Permissions |
-|---|---|
-| `OWNER` | `VIEW`, `EDIT`, `DELETE`, `MANAGE_MEMBERS`, `VIEW_MEMBERS` |
-| `EDITOR` | `VIEW`, `EDIT`, `DELETE`, `VIEW_MEMBERS` |
-| `VIEWER` | `VIEW`, `VIEW_MEMBERS` |
+v2 (2026-03-30) was the first real JPA implementation; v3 (2026-04-26) simplified several designs back toward the original v1 sketch. For reference:
 
-## Differences from the earlier v1 sketch
-
-The v1 sketch (2026-03-30) was drafted before any code existed and isn't a spec — the implementation below is the source of truth. For reference, where it differs (summarized from the Entity Details above):
-
-1. No `PROJECT_OWNERSHIP` table and no `PROJECT.owner_id` — ownership folded into `PROJECT_MEMBER.projectRole == OWNER`.
-2. `USER` has no `email`/`avatar_url`; uses `username` instead of `email`, and carries `stripeCustomerId` directly rather than only via `Subscription`.
-3. `PROJECT_FILE` has no `created_by`/`updated_by` audit trail.
-4. `PROJECT_MEMBER` has no `invited_by`.
-5. `CHAT_SESSION` has no `title`.
-6. `PLAN` has no `features` JSON column and no timestamps.
-7. `USAGE_LOG` was redesigned from a per-action audit log into a per-user-per-day counter (see entity notes above).
-8. `CHAT_MESSAGE`'s `tool_calls`/`tool_call_id` JSON columns were replaced by the new `CHAT_EVENT` child entity.
+1. **Ownership moved back onto `Project`.** v2 expressed ownership only via `ProjectMember.projectRole == OWNER` (no `owner_id` column at all). v3 restores a direct `Project.owner` FK; `ProjectMember` is now purely for non-owner collaborators, and `ProjectRole` dropped the `OWNER` constant.
+2. **`ProjectRole` dropped its permission-set model.** v2 had `ProjectRole` map each role to a `Set<ProjectPermission>` (a now-deleted enum). v3's `ProjectRole` is a plain `EDITOR`/`VIEWER` enum with no permission mapping.
+3. **`ChatMessage` dropped the `ChatEvent` child entity.** v2 represented an assistant's multi-step response as an ordered list of typed `ChatEvent` rows (`THOUGHT`/`MESSAGE`/`FILE_EDIT`/`TOOL_LOG`, now deleted along with `ChatEventType`). v3 is back to a single `toolCalls` JSON string column on `ChatMessage` itself.
+4. **`UsageLog` is a per-action audit log again**, not a daily counter. v2 had `(userId, date)` unique + a running `tokensUsed` total, no project scoping. v3 has one row per action, with `user`, `project`, `action`, `tokensUsed`, `durationMs`, `metaData`, and `createdAt`.
+5. **`User` renamed `username`/`password`/`stripeCustomerId` → `email`/`passwordHash`/(removed).** `avatarUrl` was added. `stripeCustomerId` moved onto `Subscription` instead of living on `User`.
+6. **`ChatSession` regained a `title` field** (present in v1, absent in v2).
+7. **`ProjectFile` regained `createdBy`/`updatedBy` audit FKs** (present in v1, absent in v2).
+8. **`Project` dropped its explicit composite indexes** (`idx_projects_updated_at_desc`, etc.) that v2 had added for a "list non-deleted projects, most recent first" query pattern — no index currently backs `ProjectRepository.findAllAccessibleByUser`'s `ORDER BY p.updatedAt DESC`.
 
 ## Fixed since first implementation
 
-Found while syncing docs to the code (2026-03-30) and fixed in the same pass, since these were genuine bugs rather than design differences:
+Bugs found and fixed while documenting the schema (not design differences):
 
-- `Preview` had no JPA annotations at all (`@Entity`, `@Id`/`@GeneratedValue`, `@Table`, `@ManyToOne` on `project`, `@Enumerated` on `status`) — it was a plain class that Hibernate would never have persisted. Now a proper entity (`previews` table).
-- `ChatSessionId` was missing `@Embeddable` — since `ChatSession` uses it as an `@EmbeddedId`, this would have failed at startup once a datasource was configured. Added, along with `@Getter`/`@Setter`.
-- `ChatSessionId` and `ProjectMemberId` (both `@EmbeddedId` classes) had no `equals()`/`hashCode()` — required by the JPA spec for composite keys to work correctly in the persistence context (entity identity, `@MapsId`, collection/map lookups). Added `@EqualsAndHashCode` to both; also added `implements Serializable` to `ProjectMemberId` (`ChatSessionId` already had it).
-- `Plan` and `Subscription` had no explicit `@Table` name, so they'd have defaulted to singular table names (`plan`, `subscription`) inconsistent with every other entity's plural, explicit naming (`users`, `projects`, `project_files`, etc.). Added `@Table(name = "plans")` / `@Table(name = "subscriptions")`.
-- `Plan` was also missing `@NoArgsConstructor`/`@AllArgsConstructor`/`@Builder`, inconsistent with every other entity's Lombok pattern (and blocking `Plan.builder()...build()` usage). Added.
+- **v2.1** (2026-03-30): `Preview` had no JPA annotations at all — a plain class Hibernate would never have persisted. `ChatSessionId` was missing `@Embeddable`. `ChatSessionId`/`ProjectMemberId` had no `equals()`/`hashCode()`, required by the JPA spec for composite keys. `Plan`/`Subscription` had no explicit `@Table` name (would've defaulted to singular table names) and `Plan` was missing its Lombok constructors/builder.
+- **v3** (2026-04-26): The same class of bug reappeared after an external revert stripped JPA annotations from most entities again (working tree only — the fixes below restore what v2.1 had already established, now against the v3 field/relationship shapes) — `ProjectMemberId`/`ChatSessionId` were recreated from scratch (both files had been deleted), and full JPA annotations (`@Entity`, `@Table`, `@Id`, `@ManyToOne`, `@Enumerated`, `@CreationTimestamp`/`@UpdateTimestamp`) were restored across `ProjectFile`, `ProjectMember`, `ChatSession`, `ChatMessage`, `Preview`, `Plan`, `Subscription`, and `UsageLog`. Also added: `@Column(nullable = false, unique = true)` on `User.email` and `@Column(nullable = false)` on `User.passwordHash` (neither had ever been constrained).
 
 ## Revision history
 
 - **v1** (2026-03-30): Initial schema sketch covering users, projects, collaboration (ownership/membership), file storage, live previews, AI chat, and billing (plans/subscriptions/usage) — drafted before any code existed.
-- **v2** (2026-03-30): First real implementation — all 13 entities added as JPA entities. Ownership folded into `PROJECT_MEMBER`; AI chat responses restructured into ordered `CHAT_EVENT` steps instead of a single JSON blob; `USAGE_LOG` redesigned into a daily per-user counter. See [Differences from the earlier v1 sketch](#differences-from-the-earlier-v1-sketch) for the full list.
+- **v2** (2026-03-30): First real implementation — all 13 entities added as JPA entities. Ownership folded into `PROJECT_MEMBER`; AI chat responses restructured into ordered `CHAT_EVENT` steps instead of a single JSON blob; `USAGE_LOG` redesigned into a daily per-user counter.
 - **v2.1** (2026-03-30): Fixed genuine annotation/correctness bugs found while documenting v2 — see [Fixed since first implementation](#fixed-since-first-implementation).
+- **v3** (2026-04-26): Simplified several v2 designs back toward the v1 sketch (ownership, `ProjectRole`, `ChatMessage`/`ChatEvent`, `UsageLog`) — see [Differences from v2](#differences-from-v2). Also re-fixed annotation regressions introduced by an external working-tree revert — see [Fixed since first implementation](#fixed-since-first-implementation). Entity count is now 10 (`ChatEvent` removed).

@@ -19,4 +19,4 @@ Living documentation of the project, kept current with each commit. Reference fo
 
 ---
 
-_Last updated: 2026-04-26 (v3 entity schema: simplified ownership/roles/chat/usage designs, restored JPA annotations after an external revert; added repository, MapStruct mapper, and global exception handling layers; first real service logic in `ProjectServiceImpl`; `application.yaml`/`data.sql` no longer committed)_
+_Last updated: 2026-04-26 (v3 entity schema: simplified ownership/roles/chat/usage designs, restored JPA annotations after an external revert; added repository, MapStruct mapper, and global exception handling layers; first real service logic in `ProjectServiceImpl`; `application.yaml`/`data.sql` are now committed)_

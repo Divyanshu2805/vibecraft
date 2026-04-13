@@ -6,7 +6,7 @@ An AI-assisted project-building platform: create projects, build them via AI cha
 
 ## Status
 
-10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `ProjectController`'s list/create endpoints have real logic (repository + MapStruct mapper + a global exception handler for 404s); every other endpoint is still a stub. There's no real authentication yet (every endpoint hardcodes a fake user). A PostgreSQL datasource connects locally (config not committed to this repo — see [Getting Started](#getting-started)).
+10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `ProjectController`'s list/create endpoints have real logic (repository + MapStruct mapper + a global exception handler for 404s); every other endpoint is still a stub. There's no real authentication yet (every endpoint hardcodes a fake user). A PostgreSQL datasource is configured in `application.yaml`, with a local seed (`data.sql`) inserting one dummy user on startup.
 
 ## Tech Stack
 
@@ -26,7 +26,7 @@ Full endpoint list: [docs/README.md](docs/api/README.md#apis)
 
 ## Getting Started
 
-This repo doesn't commit `application.yaml` or `data.sql` (local dev config/credentials, kept out of a public repo) — create `src/main/resources/application.yaml` yourself with a `spring.datasource` block pointing at a local PostgreSQL instance before running.
+Requires a local PostgreSQL instance matching `application.yaml`'s `spring.datasource` block (or override via `DB_USERNAME`/`DB_PASSWORD` env vars). `data.sql` seeds one dummy user on startup.
 
 ```bash
 ./mvnw spring-boot:run
@@ -52,7 +52,8 @@ src/main/java/com/java/vibecraft/controller/   REST controllers
 src/main/java/com/java/vibecraft/service/      service interfaces
 src/main/java/com/java/vibecraft/service/impl/ service implementations (mostly stubs)
 src/main/java/com/java/vibecraft/dto/          request/response records, by domain
-src/main/resources/application.yaml              configuration (not committed)
+src/main/resources/application.yaml              configuration
+src/main/resources/data.sql                       local seed data
 ```
 
 ## Documentation

@@ -2,7 +2,7 @@
 
 - Base package: `com.java.vibecraft`
 - Entry point: `VibecraftApplication` (`src/main/java/com/java/vibecraft/VibecraftApplication.java`)
-- Config: `src/main/resources/application.yaml` (not committed to this repo — see [Practices](../practices/conventions.md#practices--conventions))
+- Config: `src/main/resources/application.yaml`; seed data: `src/main/resources/data.sql`
 - `entity` — the 10 JPA entities described above (plus `ProjectMemberId`/`ChatSessionId` composite-key classes).
 - `enums` — the 4 domain enums described above.
 - `repository` — `ProjectRepository`, `UserRepository` (Spring Data JPA). Only 2 of 10 entities have one so far.

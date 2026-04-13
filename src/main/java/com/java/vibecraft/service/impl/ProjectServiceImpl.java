@@ -17,7 +17,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,8 +29,9 @@ public class ProjectServiceImpl implements ProjectService {
     ProjectMapper projectMapper;
 
     @Override
-    public ProjectSummaryResponse getUserProjectById(Long id, Long userId) {
-        return null;
+    public ProjectResponse getUserProjectById(Long id, Long userId) {
+        Project project = getAccessibleProjectById(id, userId);
+        return projectMapper.toProjectResponse(project);
     }
 
     @Override
@@ -69,5 +69,10 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void softDelete(Long id, Long userId) {
 
+    }
+
+    public Project getAccessibleProjectById(Long projectId, Long userId) {
+        return projectRepository.findAccessibleProjectById(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project", projectId.toString()));
     }
 }

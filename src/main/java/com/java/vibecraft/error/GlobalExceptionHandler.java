@@ -16,4 +16,11 @@ public class GlobalExceptionHandler {
         log.error(apiError.toString(), ex);
         return ResponseEntity.status(apiError.status()).body(apiError);
     }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex) {
+        ApiError apiError = new ApiError(HttpStatus.FORBIDDEN, ex.getMessage());
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
 }

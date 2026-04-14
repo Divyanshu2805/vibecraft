@@ -5,6 +5,7 @@ import com.java.vibecraft.dto.project.ProjectResponse;
 import com.java.vibecraft.dto.project.ProjectSummaryResponse;
 import com.java.vibecraft.entity.Project;
 import com.java.vibecraft.entity.User;
+import com.java.vibecraft.error.ForbiddenException;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.mapper.ProjectMapper;
 import com.java.vibecraft.repository.ProjectRepository;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -73,7 +75,14 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public void softDelete(Long id, Long userId) {
+        Project project = getAccessibleProjectById(id, userId);
 
+        if(!project.getOwner().getId().equals(userId)){
+            throw new ForbiddenException("You are not allowed to delete this project");
+        }
+
+        project.setDeletedAt(Instant.now());
+        projectRepository.save(project);
     }
 
     public Project getAccessibleProjectById(Long projectId, Long userId) {

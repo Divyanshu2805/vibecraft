@@ -2,11 +2,11 @@
 
 An AI-assisted project-building platform: create projects, build them via AI chat, get live previews, and collaborate with your team.
 
-> **Status:** early stage. Two endpoints (list/create projects) do real work; everything else is still a stub — see [Status](#status) below.
+> **Status:** early stage. All 5 project endpoints do real work; everything else is still a stub — see [Status](#status) below.
 
 ## Status
 
-10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `ProjectController`'s list/create endpoints have real logic (repository + MapStruct mapper + a global exception handler for 404s); every other endpoint is still a stub. There's no real authentication yet (every endpoint hardcodes a fake user). A PostgreSQL datasource is configured in `application.yaml`, with a local seed (`data.sql`) inserting one dummy user on startup.
+10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `ProjectController`'s endpoints (list, get, create, update, soft-delete) all have real logic (repository + MapStruct mapper + a global exception handler for 403/404s); every other endpoint is still a stub. There's no real authentication yet (every endpoint hardcodes a fake user). A PostgreSQL datasource is configured in `application.yaml`, with a local seed (`data.sql`) inserting one dummy user on startup.
 
 ## Tech Stack
 

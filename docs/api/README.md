@@ -1,6 +1,6 @@
 # APIs
 
-6 REST controllers exist. Two endpoints have real logic behind them now (`ProjectController`'s `GET /api/projects` and `POST /api/projects` — see [Project Status](../project-status.md#project-status)); every other endpoint still resolves to a stub service method (returns `null`, an empty list, or does nothing). All endpoints hardcode `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet. Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
+6 REST controllers exist. All 5 `ProjectController` endpoints now have real logic behind them (see [Project Status](../project-status.md#project-status)); every other controller's endpoints still resolve to a stub service method (returns `null`, an empty list, or does nothing). All endpoints hardcode `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet. Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
 
 ## AuthController (`/api/auth`)
 
@@ -15,10 +15,10 @@
 | Method | Path | Request | Response | Notes |
 |---|---|---|---|---|
 | GET | `/api/projects` | — | `List<ProjectSummaryResponse>` (`id`, `projectName`, `createdAt`, `updatedAt`) | **Real** — `ProjectRepository.findAllAccessibleByUser` + `ProjectMapper` |
-| GET | `/api/projects/{id}` | — | `ProjectSummaryResponse` | Stub |
+| GET | `/api/projects/{id}` | — | `ProjectResponse` | **Real** — owner-scoped lookup (404 `ResourceNotFoundException` if missing/inaccessible) via `ProjectServiceImpl.getAccessibleProjectById`, maps via `ProjectMapper` |
 | POST | `/api/projects` | `ProjectRequest` (`name`, `@Valid`) | `ProjectResponse` (201) | **Real** — looks up the owner via `UserRepository` (404 `ResourceNotFoundException` if missing), saves via `ProjectRepository`, maps via `ProjectMapper` |
-| PATCH | `/api/projects/{id}` | `ProjectRequest` (`@Valid`) | `ProjectResponse` | Stub |
-| DELETE | `/api/projects/{id}` | — | 204 No Content | Stub — intended as soft delete (`ProjectService.softDelete`) |
+| PATCH | `/api/projects/{id}` | `ProjectRequest` (`@Valid`) | `ProjectResponse` | **Real** — owner-scoped lookup (404 `ResourceNotFoundException` if missing/inaccessible) via `getAccessibleProjectById`, updates `name`, saves, maps via `ProjectMapper` |
+| DELETE | `/api/projects/{id}` | — | 204 No Content | **Real** — soft delete (`ProjectService.softDelete`): owner-scoped lookup via `getAccessibleProjectById`, then an explicit owner check (403 `ForbiddenException` — currently redundant, since the lookup itself already scopes to the owner), then sets `deletedAt` |
 
 ## ProjectMemberController (`/api/projects/{projectId}/members`)
 

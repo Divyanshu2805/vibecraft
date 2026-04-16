@@ -4,6 +4,10 @@ import com.java.vibecraft.dto.member.InviteMemberRequest;
 import com.java.vibecraft.dto.member.MemberResponse;
 import com.java.vibecraft.dto.member.UpdateMemberRoleRequest;
 import com.java.vibecraft.entity.Project;
+import com.java.vibecraft.entity.ProjectMember;
+import com.java.vibecraft.entity.ProjectMemberId;
+import com.java.vibecraft.entity.User;
+import com.java.vibecraft.error.ForbiddenException;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.mapper.ProjectMemberMapper;
 import com.java.vibecraft.repository.ProjectMemberRepository;
@@ -16,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,7 +51,36 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     @Override
     public MemberResponse inviteMember(Long projectId, InviteMemberRequest request, Long userId) {
-        return null;
+
+        Project project = getAccessibleProjectById(projectId, userId);
+
+        if(!project.getOwner().getId().equals(userId)){
+            throw new ForbiddenException("You are not allowed to invite");
+        }
+
+        User invitee = userRepository.findByEmail(request.email()).orElseThrow();
+
+        if(invitee.getId().equals(userId)) {
+            throw new ForbiddenException("Cannot invite yourself");
+        }
+
+        ProjectMemberId projectMemberId = new ProjectMemberId(projectId, invitee.getId());
+
+        if(projectMemberRepository.existsById(projectMemberId)) {
+            throw new ForbiddenException("Cannot invite once again");
+        }
+
+        ProjectMember member = ProjectMember.builder()
+                .id(projectMemberId)
+                .project(project)
+                .user(invitee)
+                .projectRole(request.role())
+                .invitedAt(Instant.now())
+                .build();
+
+        projectMemberRepository.save(member);
+
+        return projectMemberMapper.toProjectMemberResponseFromMember(member);
     }
 
     @Override

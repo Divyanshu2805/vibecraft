@@ -85,7 +85,20 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     @Override
     public MemberResponse updateMemberRole(Long projectId, Long memberId, UpdateMemberRoleRequest request, Long userId) {
-        return null;
+        Project project = getAccessibleProjectById(projectId, userId);
+
+        if(!project.getOwner().getId().equals(userId)){
+            throw new ForbiddenException("You are not allowed to update member role");
+        }
+
+        ProjectMemberId projectMemberId = new ProjectMemberId(projectId, memberId);
+        ProjectMember projectMember = projectMemberRepository.findById(projectMemberId).orElseThrow();
+
+        projectMember.setProjectRole(request.role());
+
+        projectMemberRepository.save(projectMember);
+
+        return projectMemberMapper.toProjectMemberResponseFromMember(projectMember);
     }
 
     @Override

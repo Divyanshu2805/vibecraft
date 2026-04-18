@@ -104,6 +104,18 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     @Override
     public void removeProjectMember(Long projectId, Long memberId, Long userId) {
 
+        Project project = getAccessibleProjectById(projectId, userId);
+
+        if(!project.getOwner().getId().equals(userId)){
+            throw new ForbiddenException("You are not allowed to remove member");
+        }
+
+        ProjectMemberId projectMemberId = new ProjectMemberId(projectId, memberId);
+        if(!projectMemberRepository.existsById(projectMemberId)) {
+            throw new RuntimeException("Member not found in project");
+        }
+
+        projectMemberRepository.deleteById(projectMemberId);
     }
 
     public Project getAccessibleProjectById(Long projectId, Long userId) {

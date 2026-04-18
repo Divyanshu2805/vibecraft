@@ -5,10 +5,10 @@
 - Config: `src/main/resources/application.yaml`; seed data: `src/main/resources/data.sql`
 - `entity` — the 10 JPA entities described above (plus `ProjectMemberId`/`ChatSessionId` composite-key classes).
 - `enums` — the 4 domain enums described above.
-- `repository` — `ProjectRepository`, `UserRepository` (Spring Data JPA). Only 2 of 10 entities have one so far.
-- `mapper` — `ProjectMapper` (MapStruct). Only `Project` has one so far.
+- `repository` — `ProjectRepository`, `ProjectMemberRepository`, `UserRepository` (Spring Data JPA). Only 3 of 10 entities have one so far.
+- `mapper` — `ProjectMapper`, `ProjectMemberMapper` (MapStruct). Only `Project` and `ProjectMember` have one so far.
 - `error` — `ApiError`, `GlobalExceptionHandler`, `ResourceNotFoundException`, `ForbiddenException` — centralized exception→HTTP-response handling.
 - `controller` — 6 REST controllers: `AuthController`, `ProjectController`, `ProjectMemberController`, `FileController`, `BillingController`, `UsageController` (see [APIs](../api/README.md#apis) above).
 - `service` — 8 service interfaces, one (or two, for auth) per controller.
-- `service.impl` — an `@Service` implementation of each interface above (`AuthServiceImpl`, `UserServiceImpl`, `ProjectServiceImpl`, `ProjectMemberServiceImpl`, `FileServiceImpl`, `PlanServiceImpl`, `SubscriptionServiceImpl`, `UsageServiceImpl`) — all still stubs except `ProjectServiceImpl`, which is fully implemented (`createProject`, `getUserProjects`, `getUserProjectById`, `updateProject`, `softDelete`).
+- `service.impl` — an `@Service` implementation of each interface above (`AuthServiceImpl`, `UserServiceImpl`, `ProjectServiceImpl`, `ProjectMemberServiceImpl`, `FileServiceImpl`, `PlanServiceImpl`, `SubscriptionServiceImpl`, `UsageServiceImpl`) — all still stubs except `ProjectServiceImpl` (`createProject`, `getUserProjects`, `getUserProjectById`, `updateProject`, `softDelete`) and `ProjectMemberServiceImpl` (`getProjectMembers`, `inviteMember`, `updateMemberRole`, `removeProjectMember`), both fully implemented.
 - `dto` — request/response records, one subpackage per domain (`auth`, `project`, `member`, `subscription`). File DTOs (`FileNode`, `FileContentResponse`) live under `dto.project`, not a separate `dto.file` package.

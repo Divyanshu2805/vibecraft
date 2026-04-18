@@ -171,7 +171,7 @@ A collaborator invited onto a project — distinct from ownership, which lives o
 |---|---|
 | `projectId` | Part of the composite primary key (`ProjectMemberId`); the project. |
 | `userId` | Part of the composite primary key; the collaborating member. |
-| `projectRole` | `EDITOR` (can modify the project) or `VIEWER` (read-only) — a plain `ProjectRole` enum. |
+| `projectRole` | `EDITOR` (can modify the project) or `VIEWER` (read-only) — a plain `ProjectRole` enum. The enum also has an `OWNER` value (re-added 2026-04-26, see [Differences from v2](#differences-from-v2)), but that's only ever used as a synthetic value for the project owner's `MemberResponse` entry (`ProjectMemberMapper.toProjectMemberResponseFromOwner`) — nothing currently stops `ProjectMemberServiceImpl.inviteMember` from persisting a real `ProjectMember` row with `projectRole = OWNER` too, since `InviteMemberRequest.role` isn't restricted. |
 | `invitedAt` | When the invite was sent. |
 | `acceptedAt` | When the invite was accepted. |
 
@@ -283,7 +283,7 @@ A per-action audit/usage record — one row per billable action a user performs.
 
 | Enum | Values | Used by |
 |---|---|---|
-| `ProjectRole` | `EDITOR`, `VIEWER` | `ProjectMember.projectRole` |
+| `ProjectRole` | `EDITOR`, `VIEWER`, `OWNER` | `ProjectMember.projectRole`, `InviteMemberRequest.role`, `UpdateMemberRoleRequest.role` |
 | `MessageRole` | `USER`, `ASSISTANT`, `SYSTEM`, `TOOL` | `ChatMessage.role` |
 | `PreviewStatus` | `CREATING`, `RUNNING`, `FAILED`, `TERMINATED` | `Preview.status` |
 | `SubscriptionStatus` | `ACTIVE`, `TRIALING`, `CANCELED`, `PAST_DUE`, `INCOMPLETE` | `Subscription.status` |
@@ -292,7 +292,7 @@ A per-action audit/usage record — one row per billable action a user performs.
 
 v2 (2026-03-30) was the first real JPA implementation; v3 (2026-04-26) simplified several designs back toward the original v1 sketch. For reference:
 
-1. **Ownership moved back onto `Project`.** v2 expressed ownership only via `ProjectMember.projectRole == OWNER` (no `owner_id` column at all). v3 restores a direct `Project.owner` FK; `ProjectMember` is now purely for non-owner collaborators, and `ProjectRole` dropped the `OWNER` constant.
+1. **Ownership moved back onto `Project`.** v2 expressed ownership only via `ProjectMember.projectRole == OWNER` (no `owner_id` column at all). v3 restores a direct `Project.owner` FK; `ProjectMember` is meant to be purely for non-owner collaborators, and `ProjectRole` initially dropped the `OWNER` constant to match — **`OWNER` was re-added to `ProjectRole` on 2026-04-26**, though, so `ProjectMemberMapper` could express the project owner as a `MemberResponse` with `role: OWNER` in the member list. That reopens the v2 ambiguity this bullet describes: see the flagged gap on `ProjectMember.projectRole` in [Entity Details](../README.md#project_member).
 2. **`ProjectRole` dropped its permission-set model.** v2 had `ProjectRole` map each role to a `Set<ProjectPermission>` (a now-deleted enum). v3's `ProjectRole` is a plain `EDITOR`/`VIEWER` enum with no permission mapping.
 3. **`ChatMessage` dropped the `ChatEvent` child entity.** v2 represented an assistant's multi-step response as an ordered list of typed `ChatEvent` rows (`THOUGHT`/`MESSAGE`/`FILE_EDIT`/`TOOL_LOG`, now deleted along with `ChatEventType`). v3 is back to a single `toolCalls` JSON string column on `ChatMessage` itself.
 4. **`UsageLog` is a per-action audit log again**, not a daily counter. v2 had `(userId, date)` unique + a running `tokensUsed` total, no project scoping. v3 has one row per action, with `user`, `project`, `action`, `tokensUsed`, `durationMs`, `metaData`, and `createdAt`.

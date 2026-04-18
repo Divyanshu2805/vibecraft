@@ -1,6 +1,6 @@
 # APIs
 
-6 REST controllers exist. All 5 `ProjectController` endpoints now have real logic behind them (see [Project Status](../project-status.md#project-status)); every other controller's endpoints still resolve to a stub service method (returns `null`, an empty list, or does nothing). All endpoints hardcode `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet. Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
+6 REST controllers exist. All 5 `ProjectController` endpoints and all 4 `ProjectMemberController` endpoints now have real logic behind them (see [Project Status](../project-status.md#project-status)); every other controller's endpoints still resolve to a stub service method (returns `null`, an empty list, or does nothing). All endpoints hardcode `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet. Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
 
 ## AuthController (`/api/auth`)
 
@@ -24,10 +24,10 @@
 
 | Method | Path | Request | Response | Notes |
 |---|---|---|---|---|
-| GET | `/api/projects/{projectId}/members` | — | `List<MemberResponse>` | Stub |
-| POST | `/api/projects/{projectId}/members` | `InviteMemberRequest` (`email` *(@Email)*, `role`, `@Valid`) | `MemberResponse` (201) | Stub |
-| PATCH | `/api/projects/{projectId}/members/{memberId}` | `UpdateMemberRoleRequest` (`role`, `@Valid`) | `MemberResponse` | Stub |
-| DELETE | `/api/projects/{projectId}/members/{memberId}` | — | 204 No Content | Stub |
+| GET | `/api/projects/{projectId}/members` | — | `List<MemberResponse>` | **Real** — owner-scoped project lookup, then the owner (synthetic `role: OWNER` entry via `ProjectMemberMapper.toProjectMemberResponseFromOwner`) prepended to the real `ProjectMember` rows (`ProjectMemberRepository.findByIdProjectId`) |
+| POST | `/api/projects/{projectId}/members` | `InviteMemberRequest` (`email` *(@Email)*, `role`, `@Valid`) | `MemberResponse` (201) | **Real** — 403 `ForbiddenException` if the caller isn't the project owner, or is inviting themself, or the invitee is already a member; looks up the invitee via `UserRepository.findByEmail` (unhandled `NoSuchElementException` → 500 if no such user), saves a new `ProjectMember` |
+| PATCH | `/api/projects/{projectId}/members/{memberId}` | `UpdateMemberRoleRequest` (`role`, `@Valid`) | `MemberResponse` | **Real** — 403 `ForbiddenException` if the caller isn't the owner; looks up the `ProjectMember` by composite id (unhandled `NoSuchElementException` → 500 if missing), updates `projectRole`, saves |
+| DELETE | `/api/projects/{projectId}/members/{memberId}` | — | 204 No Content | **Real** — 403 `ForbiddenException` if the caller isn't the owner; a plain `RuntimeException` (→ 500, not caught by `GlobalExceptionHandler`) if the member doesn't exist, otherwise deletes |
 
 ## FileController (`/api/projects/{projectId}/files`)
 

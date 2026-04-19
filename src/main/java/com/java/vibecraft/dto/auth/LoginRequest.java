@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Size;
 public record LoginRequest(
 
         @NotBlank(message = "Email is required")
-        @Email(message = "Email must be a valid email address")
-        String email,
+        @Email(message = "Email must be a valid username address")
+        String username,
 
         @NotBlank(message = "Password is required")
         @Size(min = 8)

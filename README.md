@@ -6,7 +6,7 @@ An AI-assisted project-building platform: create projects, build them via AI cha
 
 ## Status
 
-10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `ProjectController`'s endpoints (list, get, create, update, soft-delete) and `ProjectMemberController`'s endpoints (list, invite, update role, remove) all have real logic (repository + MapStruct mapper + a global exception handler for 403/404s); every other endpoint is still a stub. There's no real authentication yet (every endpoint hardcodes a fake user). A PostgreSQL datasource is configured in `application.yaml`, with a local seed (`data.sql`) inserting 3 dummy users on startup.
+10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `ProjectController`'s endpoints (list, get, create, update, soft-delete) and `ProjectMemberController`'s endpoints (list, invite, update role, remove) all have real logic (repository + MapStruct mapper + a global exception handler for 400/403/404s); every other endpoint is still a stub. There's no real authentication yet (every endpoint hardcodes a fake user). A PostgreSQL datasource is configured in `application.yaml`, with a local seed (`data.sql`) inserting 3 dummy users on startup.
 
 ## Tech Stack
 

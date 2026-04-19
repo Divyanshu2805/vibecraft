@@ -66,11 +66,13 @@ All 6 request DTOs (every DTO actually used as a `@RequestBody`) carry Bean Vali
 | | `name` | `@NotBlank`, `@Size(min = 1, max = 30)` |
 | | `password` | `@NotBlank`, `@Size(min = 8)` |
 | `LoginRequest` | `email` | `@NotBlank`, `@Email` |
-| | `password` | `@NotBlank` |
+| | `password` | `@NotBlank`, `@Size(min = 8)` *(no `message` — see note below)* |
 | `ProjectRequest` | `name` | `@NotBlank`, `@Size(max = 255)` |
 | `InviteMemberRequest` | `email` | `@NotBlank`, `@Email` |
 | | `role` | `@NotNull` |
 | `UpdateMemberRoleRequest` | `role` | `@NotNull` |
 | `CheckoutRequest` | `planId` | `@NotNull` |
 
-All 6 DTOs use `email` (not `username`) as the identity field now, matching the `User` entity's `email` column. `LoginRequest.password` intentionally has no `@Size` — login shouldn't reject a password based on shape, only presence; `SignupRequest.password` does (`min = 8`), since that's where a length policy actually belongs.
+All 6 DTOs use `email` (not `username`) as the identity field now, matching the `User` entity's `email` column.
+
+`LoginRequest.password` gained a `@Size(min = 8)` on 2026-04-26, reversing an earlier, explicitly-documented decision to leave it unconstrained (login shouldn't reject a password based on shape, only presence — that's what `SignupRequest.password`'s `@Size(min = 8)` is for). Flagged, not reverted, since it's unclear whether this was deliberate; also flagged: unlike every other constraint in the codebase, this one has no `message = "..."`, so a failing login now falls into the generic per-field `MethodArgumentNotValidException` → `errors` list with whatever default message Bean Validation supplies, instead of a codebase-authored one.

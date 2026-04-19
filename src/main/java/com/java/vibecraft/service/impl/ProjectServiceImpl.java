@@ -4,10 +4,14 @@ import com.java.vibecraft.dto.project.ProjectRequest;
 import com.java.vibecraft.dto.project.ProjectResponse;
 import com.java.vibecraft.dto.project.ProjectSummaryResponse;
 import com.java.vibecraft.entity.Project;
+import com.java.vibecraft.entity.ProjectMember;
+import com.java.vibecraft.entity.ProjectMemberId;
 import com.java.vibecraft.entity.User;
+import com.java.vibecraft.enums.ProjectRole;
 import com.java.vibecraft.error.ForbiddenException;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.mapper.ProjectMapper;
+import com.java.vibecraft.repository.ProjectMemberRepository;
 import com.java.vibecraft.repository.ProjectRepository;
 import com.java.vibecraft.repository.UserRepository;
 import com.java.vibecraft.service.ProjectService;
@@ -29,10 +33,13 @@ public class ProjectServiceImpl implements ProjectService {
     ProjectRepository projectRepository;
     UserRepository userRepository;
     ProjectMapper projectMapper;
+    ProjectMemberRepository projectMemberRepository;
 
     @Override
     public ProjectResponse getUserProjectById(Long id, Long userId) {
+
         Project project = getAccessibleProjectById(id, userId);
+
         return projectMapper.toProjectResponse(project);
     }
 
@@ -43,11 +50,24 @@ public class ProjectServiceImpl implements ProjectService {
 
         Project project = Project.builder()
                 .name(request.name())
-                .owner(owner)
                 .isPublic(false)
                 .build();
 
         project = projectRepository.save(project);
+
+        ProjectMemberId projectMemberId = new ProjectMemberId(project.getId(), owner.getId());
+
+        ProjectMember projectMember = ProjectMember.builder()
+                .id(projectMemberId)
+                .projectRole(ProjectRole.OWNER)
+                .user(owner)
+                .acceptedAt(Instant.now())
+                .invitedAt(Instant.now())
+                .project(project)
+                .build();
+
+        projectMemberRepository.save(projectMember);
+
         return projectMapper.toProjectResponse(project);
     }
 
@@ -60,14 +80,17 @@ public class ProjectServiceImpl implements ProjectService {
 //                .collect(Collectors.toList());
 
         var projects = projectRepository.findAllAccessibleByUser(userId);
+
         return projectMapper.toListOfProjectSummaryResponse(projects);
     }
 
     @Override
     public ProjectResponse updateProject(Long id, ProjectRequest request, Long userId) {
+
         Project project = getAccessibleProjectById(id, userId);
 
         project.setName(request.name());
+
         project = projectRepository.save(project);
 
         return projectMapper.toProjectResponse(project);
@@ -75,17 +98,16 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public void softDelete(Long id, Long userId) {
+
         Project project = getAccessibleProjectById(id, userId);
 
-        if(!project.getOwner().getId().equals(userId)){
-            throw new ForbiddenException("You are not allowed to delete this project");
-        }
-
         project.setDeletedAt(Instant.now());
+
         projectRepository.save(project);
     }
 
     public Project getAccessibleProjectById(Long projectId, Long userId) {
+
         return projectRepository.findAccessibleProjectById(projectId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project", projectId.toString()));
     }

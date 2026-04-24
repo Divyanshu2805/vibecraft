@@ -8,12 +8,12 @@ import com.java.vibecraft.entity.ProjectMember;
 import com.java.vibecraft.entity.ProjectMemberId;
 import com.java.vibecraft.entity.User;
 import com.java.vibecraft.enums.ProjectRole;
-import com.java.vibecraft.error.ForbiddenException;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.mapper.ProjectMapper;
 import com.java.vibecraft.repository.ProjectMemberRepository;
 import com.java.vibecraft.repository.ProjectRepository;
 import com.java.vibecraft.repository.UserRepository;
+import com.java.vibecraft.security.AuthUtil;
 import com.java.vibecraft.service.ProjectService;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
@@ -34,19 +34,22 @@ public class ProjectServiceImpl implements ProjectService {
     UserRepository userRepository;
     ProjectMapper projectMapper;
     ProjectMemberRepository projectMemberRepository;
+    AuthUtil authUtil;
 
     @Override
-    public ProjectResponse getUserProjectById(Long id, Long userId) {
+    public ProjectResponse getUserProjectById(Long id) {
 
+        Long userId = authUtil.getCurrentUserId();
         Project project = getAccessibleProjectById(id, userId);
 
         return projectMapper.toProjectResponse(project);
     }
 
     @Override
-    public ProjectResponse createProject(ProjectRequest request, Long userId) {
+    public ProjectResponse createProject(ProjectRequest request) {
 
-        User owner = userRepository.findById(userId).orElseThrow();
+        Long userId = authUtil.getCurrentUserId();
+        User owner = userRepository.getReferenceById(userId);
 
         Project project = Project.builder()
                 .name(request.name())
@@ -72,21 +75,23 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<ProjectSummaryResponse> getUserProjects(Long userId) {
+    public List<ProjectSummaryResponse> getUserProjects() {
 
 //        return projectRepository.findAllAccessibleByUser(userId)
 //                .stream()
 //                .map(projectMapper::toProjectSummaryResponse)
 //                .collect(Collectors.toList());
 
+        Long userId = authUtil.getCurrentUserId();
         var projects = projectRepository.findAllAccessibleByUser(userId);
 
         return projectMapper.toListOfProjectSummaryResponse(projects);
     }
 
     @Override
-    public ProjectResponse updateProject(Long id, ProjectRequest request, Long userId) {
+    public ProjectResponse updateProject(Long id, ProjectRequest request) {
 
+        Long userId = authUtil.getCurrentUserId();
         Project project = getAccessibleProjectById(id, userId);
 
         project.setName(request.name());
@@ -97,8 +102,9 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public void softDelete(Long id, Long userId) {
+    public void softDelete(Long id) {
 
+        Long userId = authUtil.getCurrentUserId();
         Project project = getAccessibleProjectById(id, userId);
 
         project.setDeletedAt(Instant.now());

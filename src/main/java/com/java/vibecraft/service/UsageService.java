@@ -5,7 +5,7 @@ import com.java.vibecraft.dto.subscription.UsageTodayResponse;
 
 public interface UsageService {
 
-    UsageTodayResponse getTodayUsageOfUser(Long userId);
+    UsageTodayResponse getTodayUsageOfUser();
 
-    PlanLimitsResponse getCurrentSubscriptionLimitsOfUser(Long userId);
+    PlanLimitsResponse getCurrentSubscriptionLimitsOfUser();
 }

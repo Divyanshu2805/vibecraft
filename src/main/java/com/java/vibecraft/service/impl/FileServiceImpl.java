@@ -8,17 +8,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class FileServiceImpl implements FileService {
     @Override
-    public FileNode getFileTree(Long projectId, Long userId) {
+    public FileNode getFileTree(Long projectId) {
         return null;
     }
 
     @Override
-    public FileContentResponse getFileContent(Long projectId, String path, Long userId) {
+    public FileContentResponse getFileContent(Long projectId, String path) {
         return null;
     }
 
     @Override
-    public void saveFile(Long projectId, String filePath, String fileContent, Long userId) {
+    public void saveFile(Long projectId, String filePath, String fileContent) {
 
     }
 }

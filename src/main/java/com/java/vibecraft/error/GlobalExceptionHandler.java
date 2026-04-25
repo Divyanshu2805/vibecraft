@@ -1,11 +1,17 @@
 package com.java.vibecraft.error;
 
+import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 
@@ -42,6 +48,57 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex) {
         ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, ex.getMessage());
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ApiError> handleAuthorizationDenied(AuthorizationDeniedException ex) {
+        ApiError apiError = new ApiError(HttpStatus.FORBIDDEN, ex.getMessage());
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthenticationFailure(AuthenticationException ex) {
+        ApiError apiError = new ApiError(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiError> handleJwtError(JwtException ex) {
+        ApiError apiError = new ApiError(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST,
+                "Invalid value for parameter '" + ex.getName() + "': " + ex.getValue());
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleMalformedRequest(HttpMessageNotReadableException ex) {
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, "Malformed request body");
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        ApiError apiError = new ApiError(HttpStatus.CONFLICT,
+                "The request conflicts with existing data (e.g. a duplicate or a reference to something that doesn't exist)");
+        log.error(apiError.toString(), ex);
+        return ResponseEntity.status(apiError.status()).body(apiError);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        ApiError apiError = new ApiError(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         log.error(apiError.toString(), ex);
         return ResponseEntity.status(apiError.status()).body(apiError);
     }

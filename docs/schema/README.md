@@ -141,10 +141,12 @@ An account holder on the platform — owns/collaborates on projects, participate
 |---|---|
 | `id` | Primary key. |
 | `username` | Login identifier — unique, not null. Despite the name, it's still validated as email-shaped at the DTO layer (see [Request Validation](../api/README.md#request-validation)); nothing in the entity itself constrains its format. |
-| `password` | The login password — not null. Despite the field name (renamed from `passwordHash` on 2026-04-26, see [Differences from v3](#differences-from-v3)), nothing in the codebase hashes it yet — `data.sql` seeds the literal string `'N/A'`, and no service writes to this field for real (`AuthServiceImpl` is still a stub). |
+| `password` | The **BCrypt hash** of the login password (via Spring Security's `PasswordEncoder`) — not null. Despite the field name (renamed from `passwordHash` on 2026-04-26, see [Differences from v3](#differences-from-v3)), it does now hold a hash, not plaintext — `AuthServiceImpl.signup` calls `passwordEncoder.encode(request.password())` before saving. |
 | `name` | Display name. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
 | `deletedAt` | Soft-delete timestamp — see note above. |
+
+Since 2026-04-26, `User implements UserDetails` (Spring Security) — `getUsername()`/`getPassword()` are satisfied by Lombok's generated getters for the fields above, and `getAuthorities()` is explicitly overridden to return an empty list (no roles/permissions modeled yet; every authenticated user is equivalent from Spring Security's point of view). `UserServiceImpl` additionally implements `UserDetailsService.loadUserByUsername`, used internally by the `AuthenticationManager` during login.
 
 ### PROJECT
 

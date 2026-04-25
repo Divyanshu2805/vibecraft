@@ -1,14 +1,14 @@
 # APIs
 
-6 REST controllers exist. All 5 `ProjectController` endpoints and all 4 `ProjectMemberController` endpoints now have real logic behind them (see [Project Status](../project-status.md#project-status)); every other controller's endpoints still resolve to a stub service method (returns `null`, an empty list, or does nothing). All endpoints hardcode `Long userId = 1L` rather than reading an authenticated principal, since there's no security/auth wiring yet. Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
+6 REST controllers exist. `AuthController`'s `signup`/`login`, all 5 `ProjectController` endpoints, and all 4 `ProjectMemberController` endpoints now have real logic behind them (see [Project Status](../project-status.md#project-status)); every other endpoint still resolves to a stub service method (returns `null`, an empty list, or does nothing). Every endpoint except `/api/auth/**` requires a `Bearer` JWT (`WebSecurityConfig` — see [Practices / Conventions](../practices/conventions.md#practices--conventions)); no controller hardcodes `userId` any more. Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
 
 ## AuthController (`/api/auth`)
 
 | Method | Path | Request | Response | Notes |
 |---|---|---|---|---|
-| POST | `/api/auth/signup` | `SignupRequest` (`username` *(@Email)*, `name`, `password`, `@Valid`) | `AuthResponse` (`token`, `user`) | Stub |
-| POST | `/api/auth/login` | `LoginRequest` (`username` *(@Email)*, `password`, `@Valid`) | `AuthResponse` | Stub |
-| GET | `/api/auth/me` | — | `UserProfileResponse` (`id`, `username`, `name`) | Stub; `userId` hardcoded to `1L` |
+| POST | `/api/auth/signup` | `SignupRequest` (`username` *(@Email)*, `name`, `password`, `@Valid`) | `AuthResponse` (`token`, `user`) | **Real** — 400 `BadRequestException` if `username` is already taken; hashes `password` via `PasswordEncoder` (BCrypt), saves the `User`, maps via `UserMapper`. ⚠ `token` in the response is the literal string `"dummy"`, not the real JWT actually generated — see the Project Status "Known gaps" note |
+| POST | `/api/auth/login` | `LoginRequest` (`username` *(@Email)*, `password`, `@Valid`) | `AuthResponse` | **Real** — delegates to Spring Security's `AuthenticationManager` (which calls `UserServiceImpl.loadUserByUsername` + the same `PasswordEncoder` to verify the password); returns a real JWT (`AuthUtil.generateAccessToken`) |
+| GET | `/api/auth/me` | — | `UserProfileResponse` (`id`, `username`, `name`) | Stub — `UserServiceImpl.getProfile()` still returns `null`, even though the caller's identity is now available via `AuthUtil.getCurrentUserId()` |
 
 ## ProjectController (`/api/projects`)
 
@@ -36,7 +36,7 @@
 | GET | `/api/projects/{projectId}/files` | — | `FileNode` (`path`, `modifiedAt`, `size`, `type`) | Stub. Returns a single `FileNode`, not a tree/list — despite the "get file tree" method name, `FileService.getFileTree` returns just one `FileNode`. |
 | GET | `/api/projects/{projectId}/files/content?path=` | — | `FileContentResponse` (`path`, `content`) | Stub |
 
-`FileService` also declares `saveFile(projectId, filePath, fileContent, userId)`, but there's no controller endpoint for it yet. DTOs live under `dto.project` (`FileNode`, `FileContentResponse`), not a separate `dto.file` package.
+`FileService` also declares `saveFile(projectId, filePath, fileContent)`, but there's no controller endpoint for it yet. DTOs live under `dto.project` (`FileNode`, `FileContentResponse`), not a separate `dto.file` package.
 
 ## BillingController (no `@RequestMapping` prefix — full paths on each method)
 

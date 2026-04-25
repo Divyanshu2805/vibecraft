@@ -42,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
         user = userRepository.save(user);
 
         String token = authUtil.generateAccessToken(user);
-        return new AuthResponse("dummy", userMapper.toUserProfileResponse(user));
+        return new AuthResponse(token, userMapper.toUserProfileResponse(user));
     }
 
     @Override

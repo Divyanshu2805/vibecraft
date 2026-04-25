@@ -19,4 +19,4 @@ spring:
         format_sql: false
 
 jwt:
-  secret-key: as9b7aodlbjfkluosfd789ujeklfnlsduf90b8ha908w74tuqijvlckajdl
+  secret-key: ${JWT_SECRET:as9b7aodlbjfkluosfd789ujeklfnlsduf90b8ha908w74tuqijvlckajdl}

@@ -54,7 +54,8 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         Long userId = authUtil.getCurrentUserId();
         Project project = getAccessibleProjectById(projectId, userId);
 
-        User invitee = userRepository.findByUsername(request.username()).orElseThrow();
+        User invitee = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new ResourceNotFoundException("User", request.username()));
 
         if(invitee.getId().equals(userId)) {
             throw new ForbiddenException("Cannot invite yourself");
@@ -84,7 +85,8 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     public MemberResponse updateMemberRole(Long projectId, Long memberId, UpdateMemberRoleRequest request) {
 
         ProjectMemberId projectMemberId = new ProjectMemberId(projectId, memberId);
-        ProjectMember projectMember = projectMemberRepository.findById(projectMemberId).orElseThrow();
+        ProjectMember projectMember = projectMemberRepository.findById(projectMemberId)
+                .orElseThrow(() -> new ResourceNotFoundException("ProjectMember", memberId.toString()));
 
         projectMember.setProjectRole(request.role());
 
@@ -99,7 +101,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
         ProjectMemberId projectMemberId = new ProjectMemberId(projectId, memberId);
         if(!projectMemberRepository.existsById(projectMemberId)) {
-            throw new RuntimeException("Member not found in project");
+            throw new ResourceNotFoundException("ProjectMember", memberId.toString());
         }
 
         projectMemberRepository.deleteById(projectMemberId);

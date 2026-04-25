@@ -1,7 +1,6 @@
 package com.java.vibecraft.service.impl;
 
 import com.java.vibecraft.dto.auth.UserProfileResponse;
-import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.repository.UserRepository;
 import com.java.vibecraft.service.UserService;
 import lombok.AccessLevel;
@@ -28,6 +27,6 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
         return userRepository.findByUsername(username).orElseThrow(() ->
-                new ResourceNotFoundException("User", username));
+                new UsernameNotFoundException("User not found with username: " + username));
     }
 }

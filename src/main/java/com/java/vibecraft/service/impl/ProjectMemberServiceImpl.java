@@ -81,6 +81,23 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     }
 
     @Override
+    public MemberResponse acceptInvite(Long projectId) {
+
+        Long userId = authUtil.getCurrentUserId();
+        ProjectMemberId projectMemberId = new ProjectMemberId(projectId, userId);
+
+        ProjectMember projectMember = projectMemberRepository.findById(projectMemberId)
+                .orElseThrow(() -> new ResourceNotFoundException("ProjectMember", userId.toString()));
+
+        if (projectMember.getAcceptedAt() == null) {
+            projectMember.setAcceptedAt(Instant.now());
+            projectMemberRepository.save(projectMember);
+        }
+
+        return projectMemberMapper.toProjectMemberResponseFromMember(projectMember);
+    }
+
+    @Override
     @PreAuthorize("@security.canManageMembers(#projectId)")
     public MemberResponse updateMemberRole(Long projectId, Long memberId, UpdateMemberRoleRequest request) {
 

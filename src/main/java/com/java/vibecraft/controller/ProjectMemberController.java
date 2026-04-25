@@ -34,6 +34,11 @@ public class ProjectMemberController {
         );
     }
 
+    @PostMapping("/accept")
+    public ResponseEntity<MemberResponse> acceptInvite(@PathVariable Long projectId) {
+        return ResponseEntity.ok(projectMemberService.acceptInvite(projectId));
+    }
+
     @PatchMapping("/{memberId}")
     public ResponseEntity<MemberResponse> updateMemberRole(
             @PathVariable Long projectId,

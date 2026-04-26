@@ -2,11 +2,11 @@
 
 An AI-assisted project-building platform: create projects, build them via AI chat, get live previews, and collaborate with your team.
 
-> **Status:** early stage. Signup/login, all 5 project endpoints, and all 4 project-member endpoints do real work; everything else is still a stub — see [Status](#status) below.
+> **Status:** early stage. Signup/login, all 5 project endpoints, and all 5 project-member endpoints do real work; everything else is still a stub — see [Status](#status) below.
 
 ## Status
 
-10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `AuthController`'s signup/login, `ProjectController`'s endpoints (list, get, create, update, soft-delete), and `ProjectMemberController`'s endpoints (list, invite, update role, remove) all have real logic; every other endpoint is still a stub. Authentication is real, stateless JWT (Spring Security + JJWT) — every endpoint except `/api/auth/**` requires a `Bearer` token, and most `Project`/`ProjectMember` endpoints are also role-gated (`@PreAuthorize`, e.g. only the project owner can delete it or manage members). A PostgreSQL datasource is configured in `application.yaml`.
+10 domain entities are implemented (see [docs/README.md](docs/schema/README.md#entities--models) for the full schema and ER diagram). 6 REST controllers (auth, projects, project members, project files, billing, usage) exist with their DTOs — see [docs/README.md](docs/api/README.md#apis) for the endpoint list. `AuthController`'s signup/login, `ProjectController`'s endpoints (list, get, create, update, soft-delete), and `ProjectMemberController`'s endpoints (list, invite, accept invite, update role, remove) all have real logic; every other endpoint is still a stub. Authentication is real, stateless JWT (Spring Security + JJWT) — every endpoint except `/api/auth/**` requires a `Bearer` token, and most `Project`/`ProjectMember` endpoints are also role-gated (`@PreAuthorize`, e.g. only the project owner can delete it or manage members). A PostgreSQL datasource is configured in `application.yaml`.
 
 ## Tech Stack
 

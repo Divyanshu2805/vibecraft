@@ -172,7 +172,7 @@ The sole record of who can access a project and in what capacity — both owners
 | `userId` | Part of the composite primary key; the member. |
 | `projectRole` | `OWNER` (the project creator — exactly one per project, by convention, not enforced), `EDITOR` (can modify the project), or `VIEWER` (read-only) — a plain `ProjectRole` enum. ⚠ Nothing currently enforces the "exactly one `OWNER`" convention or restricts who can be assigned `OWNER`: `InviteMemberRequest.role`/`UpdateMemberRoleRequest.role` accept any `ProjectRole` value including `OWNER`, and none of `ProjectMemberServiceImpl`'s methods check the caller's own role before inviting/promoting/removing a member — see the "Known gaps" note in [Project Status](../project-status.md#project-status). |
 | `invitedAt` | When the invite was sent (also set for the owner's own row, to "now", at project-creation time). |
-| `acceptedAt` | When the invite was accepted (also set for the owner's own row at creation time; never set for anyone else, since there's no accept-invite endpoint yet). |
+| `acceptedAt` | When the invite was accepted — set for the owner's own row at project-creation time, and for anyone else via `POST /api/projects/{projectId}/members/accept` (added 2026-04-26, see [APIs](../api/README.md#apis)). `null` means still pending. Nothing currently reads this field to restrict access, though — an invited member has full access per their `projectRole` immediately, whether or not they've accepted; see Project Status "Known gaps". |
 
 `ProjectMemberId` (the `@EmbeddedId`) implements `Serializable` and `equals()`/`hashCode()` over both fields, as required for a JPA composite key to behave correctly in the persistence context.
 

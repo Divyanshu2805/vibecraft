@@ -20,3 +20,11 @@ spring:
 
 jwt:
   secret-key: ${JWT_SECRET:as9b7aodlbjfkluosfd789ujeklfnlsduf90b8ha908w74tuqijvlckajdl}
+
+stripe:
+  api:
+    secret: ${STRIPE_SECRET:sk_test_replace_me}
+  webhook:
+    secret: ${STRIPE_WEBHOOK_SECRET:whsec_replace_me}
+
+client.url: http://localhost:8080

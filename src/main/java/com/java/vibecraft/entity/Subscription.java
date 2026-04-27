@@ -35,7 +35,6 @@ public class Subscription {
     @Column(nullable = false)
     SubscriptionStatus status;
 
-    String stripeCustomerId;
     String stripeSubscriptionId;
 
     Instant currentPeriodStart;

@@ -34,3 +34,6 @@ build/
 
 ### Local dev log (not pushed) ###
 DEVLOG.md
+
+### Local secrets (not pushed) ###
+.env

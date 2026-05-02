@@ -6,5 +6,5 @@
   - Spring Data JPA (`spring-boot-starter-data-jpa`)
 - **Database:** PostgreSQL — datasource configured in `application.yaml`, `ddl-auto: update`
 - **Build tool:** Maven (via Maven Wrapper)
-- **Other libraries:** Lombok, MapStruct 1.6.3 (compile-time entity↔DTO mapping, `mapper` package), Bean Validation (`spring-boot-starter-validation`, for `@NotBlank`/`@Email`/`@Size`/`@NotNull`/`@Valid` on request DTOs), Spring Security (`spring-boot-starter-security`, `security` package — JWT-based, stateless), JJWT 0.12.6 (`jjwt-api`/`jjwt-impl`/`jjwt-jackson` — token generation/verification in `AuthUtil`)
+- **Other libraries:** Lombok, MapStruct 1.6.3 (compile-time entity↔DTO mapping, `mapper` package), Bean Validation (`spring-boot-starter-validation`, for `@NotBlank`/`@Email`/`@Size`/`@NotNull`/`@Valid` on request DTOs), Spring Security (`spring-boot-starter-security`, `security` package — JWT-based, stateless), JJWT 0.12.6 (`jjwt-api`/`jjwt-impl`/`jjwt-jackson` — token generation/verification in `AuthUtil`), Stripe Java SDK 31.1.0 (`stripe-java`, added 2026-05-02 — Checkout Sessions, webhook signature verification, typed event objects; `PaymentConfig` sets the SDK's static `Stripe.apiKey` from `stripe.api.secret` at startup)
 - **Testing:** Spring Boot Test, JUnit 5 (`spring-boot-starter-webmvc-test`, `spring-boot-starter-data-jpa-test`)

@@ -25,6 +25,7 @@ erDiagram
         string username UK
         string password
         string name
+        string stripeCustomerId UK
         timestamp createdAt
         timestamp updatedAt
         timestamp deletedAt
@@ -95,7 +96,6 @@ erDiagram
         bigint userId FK
         bigint planId FK
         string status "ACTIVE, TRIALING, CANCELED, PAST_DUE, INCOMPLETE"
-        string stripeCustomerId
         string stripeSubscriptionId
         timestamp currentPeriodStart
         timestamp currentPeriodEnd
@@ -143,6 +143,7 @@ An account holder on the platform — owns/collaborates on projects, participate
 | `username` | Login identifier — unique, not null. Despite the name, it's still validated as email-shaped at the DTO layer (see [Request Validation](../api/README.md#request-validation)); nothing in the entity itself constrains its format. |
 | `password` | The **BCrypt hash** of the login password (via Spring Security's `PasswordEncoder`) — not null. Despite the field name (renamed from `passwordHash` on 2026-04-26, see [Differences from v3](#differences-from-v3)), it does now hold a hash, not plaintext — `AuthServiceImpl.signup` calls `passwordEncoder.encode(request.password())` before saving. |
 | `name` | Display name. |
+| `stripeCustomerId` | Stripe's customer id for this user — unique, nullable. Set once their first Stripe Checkout session completes; reused on every later checkout instead of Stripe minting a new customer each time. Moved here from `Subscription` on 2026-05-02, where it had been duplicated on both entities. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
 | `deletedAt` | Soft-delete timestamp — see note above. |
 
@@ -242,11 +243,12 @@ A user's billing subscription to a plan (`subscriptions` table), synced with Str
 | `user` | The subscribing user — `@ManyToOne`, not null. |
 | `plan` | Which `PLAN` this subscription is for — `@ManyToOne`, not null. |
 | `status` | `SubscriptionStatus` enum (`ACTIVE`, `TRIALING`, `CANCELED`, `PAST_DUE`, `INCOMPLETE`), not null. |
-| `stripeCustomerId` | Stripe's customer ID, tracked here (not on `User`). |
 | `stripeSubscriptionId` | Stripe's own ID for this subscription, used to reconcile with Stripe webhook events. |
 | `currentPeriodStart` / `currentPeriodEnd` | The current billing cycle's date range. |
 | `cancelAtPeriodEnd` | Whether the subscription is set to cancel at the end of the current period rather than immediately. Defaults to `false`. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
+
+`stripeCustomerId` moved off this entity onto `User` on 2026-05-02 — it was duplicated on both; the owning customer id is reachable via `subscription.getUser().getStripeCustomerId()` instead.
 
 ### PLAN
 

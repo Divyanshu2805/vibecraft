@@ -8,6 +8,7 @@ import com.java.vibecraft.enums.SubscriptionStatus;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.mapper.SubscriptionMapper;
 import com.java.vibecraft.repository.PlanRepository;
+import com.java.vibecraft.repository.ProjectMemberRepository;
 import com.java.vibecraft.repository.SubscriptionRepository;
 import com.java.vibecraft.repository.UserRepository;
 import com.java.vibecraft.security.AuthUtil;
@@ -33,6 +34,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     PlanRepository planRepository;
     AuthUtil authUtil;
     SubscriptionMapper subscriptionMapper;
+    ProjectMemberRepository projectMemberRepository;
+
+    Integer FREE_TIER_PROJECTS_ALLOWED = 100;
 
     @Override
     public SubscriptionResponse getCurrentSubscription() {
@@ -142,6 +146,20 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscriptionRepository.save(subscription);
 
         // Notify user via email..
+    }
+
+    @Override
+    public boolean canCreateNewProject() {
+        Long userId = authUtil.getCurrentUserId();
+        SubscriptionResponse currentSubscription = getCurrentSubscription();
+
+        int countOfOwnedProjects = projectMemberRepository.countProjectOwnedByUser(userId);
+
+        if(currentSubscription.plan() == null) {
+            return countOfOwnedProjects < FREE_TIER_PROJECTS_ALLOWED;
+        }
+
+        return countOfOwnedProjects < currentSubscription.plan().maxProjects();
     }
 
     private User getUser(Long userId) {

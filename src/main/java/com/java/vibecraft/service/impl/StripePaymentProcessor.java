@@ -6,6 +6,7 @@ import com.java.vibecraft.dto.subscription.PortalResponse;
 import com.java.vibecraft.entity.Plan;
 import com.java.vibecraft.entity.User;
 import com.java.vibecraft.enums.SubscriptionStatus;
+import com.java.vibecraft.error.BadRequestException;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.repository.PlanRepository;
 import com.java.vibecraft.repository.UserRepository;
@@ -83,7 +84,26 @@ public class StripePaymentProcessor implements PaymentProcessor {
 
     @Override
     public PortalResponse openCustomerPortal() {
-        return null;
+        Long userId = authUtil.getCurrentUserId();
+        User user = getUser(userId);
+        String stripeCustomerId = user.getStripeCustomerId();
+
+        if(stripeCustomerId == null || stripeCustomerId.isEmpty()) {
+            throw new BadRequestException("User does not have a Stripe Customer Id, UserId:"+userId);
+        }
+
+        try {
+            var portalSession = com.stripe.model.billingportal.Session.create(
+                    com.stripe.param.billingportal.SessionCreateParams.builder()
+                            .setCustomer(stripeCustomerId)
+                            .setReturnUrl(frontendUrl)
+                            .build()
+            );
+
+            return new PortalResponse(portalSession.getUrl());
+        } catch (StripeException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

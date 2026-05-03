@@ -8,6 +8,7 @@ import com.java.vibecraft.entity.ProjectMember;
 import com.java.vibecraft.entity.ProjectMemberId;
 import com.java.vibecraft.entity.User;
 import com.java.vibecraft.enums.ProjectRole;
+import com.java.vibecraft.error.BadRequestException;
 import com.java.vibecraft.error.ResourceNotFoundException;
 import com.java.vibecraft.mapper.ProjectMapper;
 import com.java.vibecraft.repository.ProjectMemberRepository;
@@ -15,6 +16,7 @@ import com.java.vibecraft.repository.ProjectRepository;
 import com.java.vibecraft.repository.UserRepository;
 import com.java.vibecraft.security.AuthUtil;
 import com.java.vibecraft.service.ProjectService;
+import com.java.vibecraft.service.SubscriptionService;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class ProjectServiceImpl implements ProjectService {
     ProjectMapper projectMapper;
     ProjectMemberRepository projectMemberRepository;
     AuthUtil authUtil;
+    SubscriptionService subscriptionService;
 
     @Override
     @PreAuthorize("@security.canViewProject(#id)")
@@ -49,6 +52,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectResponse createProject(ProjectRequest request) {
+
+        if(!subscriptionService.canCreateNewProject()) {
+            throw new BadRequestException("User cannot create a New project with current Plan, Upgrade plan now.");
+        }
 
         Long userId = authUtil.getCurrentUserId();
         User owner = userRepository.getReferenceById(userId);

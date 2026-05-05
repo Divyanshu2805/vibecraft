@@ -29,8 +29,6 @@ public class ChatSession {
     @JoinColumn(name = "user_id", nullable = false, updatable = false)
     User user;
 
-    String title;
-
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     Instant createdAt;

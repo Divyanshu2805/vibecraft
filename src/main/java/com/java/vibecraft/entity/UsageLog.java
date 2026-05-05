@@ -6,37 +6,29 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
+@Entity
+@Table(name = "usage_logs", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "date"}) // One log per user per day
+})
 @Getter
 @Setter
-@FieldDefaults(level = AccessLevel.PRIVATE)
-@Entity
-@Table(name = "usage_logs")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class UsageLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    User user;
+    @Column(name = "user_id", nullable = false)
+    Long userId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "project_id", nullable = false)
-    Project project;
-
-    String action;
+    @Column(nullable = false)
+    LocalDate date;
 
     Integer tokensUsed;
-    Integer durationMs;
-
-    @Column(columnDefinition = "text")
-    String metaData; // JSON of {model_used, prompt_used}
-
-    @CreationTimestamp
-    Instant createdAt;
 }

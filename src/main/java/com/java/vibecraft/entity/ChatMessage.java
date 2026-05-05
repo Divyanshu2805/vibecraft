@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.List;
 
 @Entity
 @Table(name = "chat_messages")
@@ -36,11 +37,12 @@ public class ChatMessage {
     @Column(nullable = false)
     MessageRole role;
 
-    @Column(columnDefinition = "text")
-    String toolCalls; // JSON Array of Tools Called
-
     Integer tokensUsed;
 
     @CreationTimestamp
     Instant createdAt;
+
+    @OneToMany(mappedBy = "chatMessage", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OrderBy("sequenceOrder ASC")
+    List<ChatEvent> events;
 }

@@ -1,8 +1,8 @@
 # Entities / Models
 
-10 entity types are implemented as JPA entities. This section documents the schema **as implemented in code**, which is the source of truth. The design was simplified on 2026-04-26 (v3) from the previous implementation (v2): project ownership moved from a `ProjectMember`-role model back onto a direct `Project.owner` FK, `ProjectRole` dropped its permission-set design back to a plain `EDITOR`/`VIEWER` enum, `ChatMessage` dropped the `ChatEvent` child-entity design back to a `toolCalls` JSON string column, and `UsageLog` dropped the daily-counter design back to a per-action audit row. See [Differences from v2](#differences-from-v2) below. Later the same day (v4), two of those v3 decisions were reversed: project ownership moved back onto `ProjectMember.projectRole == OWNER` (no `Project.owner` FK), and `User.email`/`passwordHash` were renamed back to `username`/`password` with `avatarUrl` dropped. See [Differences from v3](#differences-from-v3) below.
+11 entity types are implemented as JPA entities. This section documents the schema **as implemented in code**, which is the source of truth. The design was simplified on 2026-04-26 (v3) from the previous implementation (v2): project ownership moved from a `ProjectMember`-role model back onto a direct `Project.owner` FK, `ProjectRole` dropped its permission-set design back to a plain `EDITOR`/`VIEWER` enum, `ChatMessage` dropped the `ChatEvent` child-entity design back to a `toolCalls` JSON string column, and `UsageLog` dropped the daily-counter design back to a per-action audit row. See [Differences from v2](#differences-from-v2) below. Later the same day (v4), two of those v3 decisions were reversed: project ownership moved back onto `ProjectMember.projectRole == OWNER` (no `Project.owner` FK), and `User.email`/`passwordHash` were renamed back to `username`/`password` with `avatarUrl` dropped. See [Differences from v3](#differences-from-v3) below. On 2026-05-16 (v5), as real AI chat generation landed, two more v3 decisions were reversed back toward v2: `ChatEvent`/`ChatEventType` were restored (`ChatMessage.toolCalls` removed in favor of structured child rows) and `UsageLog` reverted to a per-user daily counter (from a per-action audit row) — see [Differences from v4](#differences-from-v4) below.
 
-## Entity Relationship Diagram (v4)
+## Entity Relationship Diagram (v5)
 
 ```mermaid
 erDiagram
@@ -15,10 +15,10 @@ erDiagram
     PROJECT ||--o{ PROJECT_FILE : contains
     PROJECT ||--o{ PREVIEW : "has previews"
     PROJECT ||--o{ CHAT_SESSION : "has conversations"
-    PROJECT ||--o{ USAGE_LOG : "tracked by"
 
     PLAN ||--o{ SUBSCRIPTION : follows
     CHAT_SESSION ||--o{ CHAT_MESSAGE : contains
+    CHAT_MESSAGE ||--o{ CHAT_EVENT : "made up of"
 
     USER {
         bigint id PK
@@ -74,7 +74,6 @@ erDiagram
     CHAT_SESSION {
         bigint projectId PK, FK
         bigint userId PK, FK
-        string title
         timestamp createdAt
         timestamp updatedAt
         timestamp deletedAt
@@ -86,9 +85,18 @@ erDiagram
         bigint userId FK
         text content
         string role "USER, ASSISTANT, SYSTEM, TOOL"
-        text toolCalls
         int tokensUsed
         timestamp createdAt
+    }
+
+    CHAT_EVENT {
+        bigint id PK
+        bigint chatMessageId FK
+        string type "THOUGHT, MESSAGE, FILE_EDIT, TOOL_LOG"
+        int sequenceOrder
+        text content
+        string filePath
+        text metadata
     }
 
     SUBSCRIPTION {
@@ -117,13 +125,9 @@ erDiagram
 
     USAGE_LOG {
         bigint id PK
-        bigint userId FK
-        bigint projectId FK
-        string action
+        bigint userId "not a FK object reference, plain column"
+        date date
         int tokensUsed
-        int durationMs
-        text metaData
-        timestamp createdAt
     }
 ```
 
@@ -213,11 +217,10 @@ An AI-assisted build conversation scoped to one project and the user who started
 |---|---|
 | `projectId` | Part of the composite primary key (`ChatSessionId`); the project being worked on. |
 | `userId` | Part of the composite primary key; the user having this conversation. |
-| `title` | Human-readable session title. |
 | `createdAt` / `updatedAt` | Record lifecycle timestamps. |
 | `deletedAt` | Soft-delete timestamp. |
 
-`ChatSessionId` (the `@EmbeddedId`) is `@Embeddable`, implements `Serializable`, and has `equals()`/`hashCode()` over both fields — required for a JPA composite key to behave correctly (e.g. for `@MapsId` and persistence-context identity lookups).
+`ChatSessionId` (the `@EmbeddedId`) is `@Embeddable`, implements `Serializable`, and has `equals()`/`hashCode()` over both fields — required for a JPA composite key to behave correctly (e.g. for `@MapsId` and persistence-context identity lookups). `title` (present in v1, dropped in v2, restored in v3) was dropped again 2026-05-16 — unused by the new chat feature.
 
 ### CHAT_MESSAGE
 
@@ -227,11 +230,27 @@ A single message within a chat session — from the user or the AI assistant.
 |---|---|
 | `id` | Primary key. |
 | `chatSession` (`projectId` + `userId`) | Which chat session this message belongs to — FK to the composite `ChatSession` key. |
-| `content` | The message text (`text` column). |
+| `content` | The message text (`text` column). For an `ASSISTANT` message, currently always the placeholder literal `"Assistant Message here..."` rather than the model's real output — see [Project Status](../project-status.md#project-status) "Known gaps". |
 | `role` | Who/what this message represents — `MessageRole` enum (`USER`, `ASSISTANT`, `SYSTEM`, `TOOL`), not null. |
-| `toolCalls` | JSON array of AI tool/function calls made in this message (`text` column, not `jsonb`) — a raw string, not a structured child entity. |
-| `tokensUsed` | Token cost of this message, for usage metering. |
+| `tokensUsed` | Token cost of this message (prompt tokens for a `USER` message, completion tokens for the paired `ASSISTANT` message) — `null` if the model provider didn't report usage for that exchange. |
 | `createdAt` | When the message was sent. |
+| `events` | The structured breakdown of an assistant response — `@OneToMany(mappedBy = "chatMessage", cascade = ALL)`, ordered by `sequenceOrder`. New 2026-05-16, replacing the v3 `toolCalls` JSON string column; see `CHAT_EVENT` below. |
+
+### CHAT_EVENT
+
+One step of an assistant's response — a thought, a plain message, a file edit, or a tool-call log — restored 2026-05-16 from the original v2 design (v3 had flattened this into `ChatMessage.toolCalls`).
+
+| Field | Meaning |
+|---|---|
+| `id` | Primary key. |
+| `chatMessage` | The assistant `ChatMessage` this event belongs to — `@ManyToOne`, not null. |
+| `type` | `ChatEventType` enum: `THOUGHT` ("Thought for Ns"), `MESSAGE` (conversational text), `FILE_EDIT` (a generated/modified file), `TOOL_LOG` (a tool call, e.g. reading files). |
+| `sequenceOrder` | Position of this event within the response — not null; events are fetched/rendered in this order. |
+| `content` | The event's text content (Markdown for `MESSAGE`, file content for `FILE_EDIT`) — `text` column. |
+| `filePath` | The file path, for `FILE_EDIT` events only. |
+| `metadata` | Extra context (currently the raw tool-args string for `TOOL_LOG` events) — `text` column. |
+
+`LlmResponseParser` builds these by regex-matching `<message>`/`<file path="...">`/`<tool args="...">` tags out of the LLM's raw streamed text (see [Practices / Conventions](../practices/conventions.md#practices--conventions)); a synthetic `THOUGHT` event (elapsed thinking time) is prepended before the parsed events are saved.
 
 ### SUBSCRIPTION
 
@@ -267,18 +286,14 @@ A billing tier defining what a subscriber gets — quotas and limits (`plans` ta
 
 ### USAGE_LOG
 
-A per-action audit/usage record — one row per billable action a user performs.
+A per-user, per-day AI token counter (`usage_logs` table) — reverted 2026-05-16 from a per-action audit row back to the original v2 daily-counter design, one row per user per calendar day.
 
 | Field | Meaning |
 |---|---|
 | `id` | Primary key. |
-| `user` | Which user performed the action — `@ManyToOne`, not null. |
-| `project` | Which project it was performed on — `@ManyToOne`, not null. |
-| `action` | What was done (e.g. `ai_generate`, `file_create`). |
-| `tokensUsed` | AI tokens consumed by this action, if any. |
-| `durationMs` | How long the action took, in milliseconds. |
-| `metaData` | Additional context about the action (JSON, stored as `text`). |
-| `createdAt` | When the action occurred. |
+| `userId` | The user this counter belongs to — a plain `Long` column, not a `@ManyToOne User` object reference (unlike most other FK-shaped fields in this codebase). Not null. |
+| `date` | The calendar day this row counts — not null; unique together with `userId` (`@UniqueConstraint(columnNames = {"user_id", "date"})`), so there's exactly one row per user per day. |
+| `tokensUsed` | Running total of AI tokens consumed by this user on this day — incremented (not replaced) on each recorded usage. |
 
 ## Domain Vocabulary (Enums)
 
@@ -287,6 +302,7 @@ A per-action audit/usage record — one row per billable action a user performs.
 | `ProjectRole` | `EDITOR`, `VIEWER`, `OWNER` — since 2026-04-26, each maps to a `Set<ProjectPermission>` (`EDITOR`: `VIEW`/`EDIT`/`DELETE`/`VIEW_MEMBERS`; `VIEWER`: `VIEW`/`VIEW_MEMBERS`; `OWNER`: all five) | `ProjectMember.projectRole`, `InviteMemberRequest.role`, `UpdateMemberRoleRequest.role` |
 | `ProjectPermission` | `VIEW`, `EDIT`, `DELETE`, `MANAGE_MEMBERS`, `VIEW_MEMBERS` (each also carries a string `value`, e.g. `"project:view"`, currently unused outside the enum itself) | `ProjectRole.permissions`, checked by `SecurityExpressions` for every `@PreAuthorize` decision |
 | `MessageRole` | `USER`, `ASSISTANT`, `SYSTEM`, `TOOL` | `ChatMessage.role` |
+| `ChatEventType` | `THOUGHT`, `MESSAGE`, `FILE_EDIT`, `TOOL_LOG` — restored 2026-05-16 (existed in v2, deleted in v3 along with `ChatEvent`) | `ChatEvent.type` |
 | `PreviewStatus` | `CREATING`, `RUNNING`, `FAILED`, `TERMINATED` | `Preview.status` |
 | `SubscriptionStatus` | `ACTIVE`, `TRIALING`, `CANCELED`, `PAST_DUE`, `INCOMPLETE` | `Subscription.status` |
 
@@ -312,6 +328,15 @@ v4 (2026-04-26, later the same day as v3) reverted two of v3's decisions back to
 3. **`data.sql` now seeds a placeholder `password` value (`'N/A'`) instead of `NULL`.** Unrelated to the rename itself — `User.passwordHash` (now `password`) has always been `@Column(nullable = false)`, and the seed rows had always passed `NULL` for it; this only surfaced as a startup failure once `ddl-auto` was changed (see next point) to actually recreate the table with that constraint enforced on insert.
 4. **Local `ddl-auto` switched from `update` to `create`.** Convenient while entity shapes are being actively reworked (as in this v3→v4 change) since `update` can't rename/drop a `NOT NULL` column — it can only fail loudly when asked to. Trade-off: every application restart now wipes and reseeds the whole local database.
 
+## Differences from v4
+
+v5 (2026-05-16) reverted two more v3 decisions back toward v2, landing alongside real AI chat generation (Spring AI + OpenRouter) and MinIO-backed file storage:
+
+1. **`ChatEvent`/`ChatEventType` restored, `ChatMessage.toolCalls` removed.** v3 had flattened an assistant's response into a single `toolCalls` JSON string column; v5 goes back to v2's design — an ordered list of typed `ChatEvent` child rows (`THOUGHT`/`MESSAGE`/`FILE_EDIT`/`TOOL_LOG`) per `ChatMessage`, populated by `LlmResponseParser` regex-matching XML-ish tags out of the LLM's streamed output. `ChatEventType` itself turned out to still exist on disk with its original `com.codingshuttle.projects.lovable_clone.enums` package from the reference project (a leftover from before v3 deleted it) — repackaged rather than recreated from scratch.
+2. **`UsageLog` reverted to a per-user daily counter.** v3 had a per-action audit row (`user`, `project`, `action`, `durationMs`, `metaData`, `createdAt`); v5 goes back to v2's shape — a plain `userId` column (not a `@ManyToOne` object reference), a `date`, and a running `tokensUsed` total, unique per `(user_id, date)`. `AiGenerationServiceImpl` calls `UsageService.recordTokenUsage` once per completed chat exchange, incrementing today's row (creating it if absent).
+3. **`ChatSession.title` dropped again** (present in v1, absent in v2, restored in v3) — unused by the new chat feature.
+4. **New, not a v2→v3→v4 reversal: MinIO-backed `PROJECT_FILE` storage is now real.** `ProjectFile.minioObjectKey` existed on the entity since early on but had no backing service; `StorageConfig`/`ProjectFileServiceImpl` now actually read/write file content through a `MinioClient` bean, closing the gap CLAUDE.md previously flagged as "schema-level intent, not working infrastructure."
+
 ## Fixed since first implementation
 
 Bugs found and fixed while documenting the schema (not design differences):
@@ -326,3 +351,4 @@ Bugs found and fixed while documenting the schema (not design differences):
 - **v2.1** (2026-03-30): Fixed genuine annotation/correctness bugs found while documenting v2 — see [Fixed since first implementation](#fixed-since-first-implementation).
 - **v3** (2026-04-26): Simplified several v2 designs back toward the v1 sketch (ownership, `ProjectRole`, `ChatMessage`/`ChatEvent`, `UsageLog`) — see [Differences from v2](#differences-from-v2). Also re-fixed annotation regressions introduced by an external working-tree revert — see [Fixed since first implementation](#fixed-since-first-implementation). Entity count is now 10 (`ChatEvent` removed).
 - **v4** (2026-04-26, later the same day): Reverted two v3 decisions back toward v2 — `Project.owner` FK removed (ownership back on `ProjectMember.projectRole == OWNER`), `User.email`/`passwordHash` renamed back to `username`/`password` with `avatarUrl` dropped — see [Differences from v3](#differences-from-v3). Entity count unchanged at 10.
+- **v5** (2026-05-16): Reverted two more v3 decisions back toward v2 — `ChatEvent`/`ChatEventType` restored (`ChatMessage.toolCalls` removed), `UsageLog` reverted to a per-user daily counter — alongside real AI chat generation and MinIO file storage landing for the first time. See [Differences from v4](#differences-from-v4). Entity count now 11 (`ChatEvent` re-added).

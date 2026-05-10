@@ -8,4 +8,6 @@ public interface UsageService {
     UsageTodayResponse getTodayUsageOfUser();
 
     PlanLimitsResponse getCurrentSubscriptionLimitsOfUser();
+
+    void recordTokenUsage(Long userId, int actualTokens);
 }

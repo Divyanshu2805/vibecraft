@@ -5,7 +5,8 @@
 - Config: `src/main/resources/application.yaml` (no more `data.sql` — deleted 2026-04-26).
 - `entity` — the 11 JPA entities described above (plus `ProjectMemberId`/`ChatSessionId` composite-key classes). `User` also implements Spring Security's `UserDetails`.
 - `enums` — the 5 domain enums described above.
-- `config` — `PaymentConfig` (2026-05-02, `@Configuration`) — sets the Stripe SDK's static `Stripe.apiKey` from `stripe.api.secret` at startup.
+- `config` — `PaymentConfig` (2026-05-02) sets the Stripe SDK's static `Stripe.apiKey` at startup; `StorageConfig`/`AiConfig` (both 2026-05-16) build the `MinioClient` and `ChatClient` beans respectively.
+- `llm` (new 2026-05-16) — `PromptUtils` (the code-generation system prompt), `LlmResponseParser` (XML-tag output → `ChatEvent` rows), `llm.tools.CodeGenerationTools` (the `read_files` tool), `llm.advisors.FileTreeContextAdvisor` (injects the file tree into context) — see the Practices note above for how these fit together.
 - `repository` — `ProjectRepository`, `ProjectMemberRepository`, `UserRepository`, `PlanRepository`, `SubscriptionRepository`, and (new 2026-05-16) `ChatEventRepository`, `ChatSessionRepository`, `ChatMessageRepository`, `UsageLogRepository` (Spring Data JPA). Only `ProjectFile` and `Preview` have no repository yet.
 - `mapper` — `ProjectMapper`, `ProjectMemberMapper`, `UserMapper`, and (new 2026-05-02) `SubscriptionMapper` (MapStruct). Only `Project`, `ProjectMember`, `User`, and `Subscription` have one so far.
 - `error` — `ApiError`, `GlobalExceptionHandler`, `ResourceNotFoundException`, `ForbiddenException`, `BadRequestException` — centralized exception→HTTP-response handling.

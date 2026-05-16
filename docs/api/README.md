@@ -1,6 +1,6 @@
 # APIs
 
-6 REST controllers exist. `AuthController`'s `signup`/`login`, all 5 `ProjectController` endpoints, all 5 `ProjectMemberController` endpoints, and `BillingController`'s `GET /api/me/subscription`/`POST /api/payments/checkout`/`POST /api/payments/portal`/`POST /webhooks/payment` now have real logic behind them (see [Project Status](../project-status.md#project-status)); only `BillingController`'s `GET /api/plans` and every `FileController`/`UsageController` endpoint still resolve to a stub service method (returns `null`, an empty list, or does nothing). Every endpoint except `/api/auth/**` (and `/webhooks/**`, for Stripe's own calls) requires a `Bearer` JWT (`WebSecurityConfig` — see [Practices / Conventions](../practices/conventions.md#practices--conventions)); no controller hardcodes `userId` any more. 7 of the 10 real `Project`/`ProjectMember` methods are additionally `@PreAuthorize`-gated by role (see the Project Status "Authorization" row) — the three that aren't (`GET /api/projects`, `POST /api/projects`, `POST /members/accept`) don't need to be, since they're inherently self-scoped (accepting an invite only ever acts on the caller's own `ProjectMember` row). Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
+7 REST controllers exist (`ChatController` new 2026-05-16). `AuthController`'s `signup`/`login`, all 5 `ProjectController` endpoints, all 5 `ProjectMemberController` endpoints, `BillingController`'s `GET /api/me/subscription`/`POST /api/payments/checkout`/`POST /api/payments/portal`/`POST /webhooks/payment`, and both `ChatController` endpoints now have real logic behind them (see [Project Status](../project-status.md#project-status)); only `BillingController`'s `GET /api/plans` and every `FileController`/`UsageController` endpoint still resolve to a stub service method (returns `null`, an empty list, or does nothing). Every endpoint except `/api/auth/**` (and `/webhooks/**`, for Stripe's own calls) requires a `Bearer` JWT (`WebSecurityConfig` — see [Practices / Conventions](../practices/conventions.md#practices--conventions)); no controller hardcodes `userId` any more. 7 of the 10 real `Project`/`ProjectMember` methods are additionally `@PreAuthorize`-gated by role (see the Project Status "Authorization" row) — the three that aren't (`GET /api/projects`, `POST /api/projects`, `POST /members/accept`) don't need to be, since they're inherently self-scoped (accepting an invite only ever acts on the caller's own `ProjectMember` row). Every request body below is validated (`@Valid` + Bean Validation constraints on the DTO) — see [Request Validation](#request-validation) below the tables for the full constraint list per field.
 
 ## AuthController (`/api/auth`)
 
@@ -39,6 +39,8 @@
 
 `FileService` also declares `saveFile(projectId, filePath, fileContent)`, but there's no controller endpoint for it yet. DTOs live under `dto.project` (`FileNode`, `FileContentResponse`), not a separate `dto.file` package.
 
+As of 2026-05-16, a **separate**, fully-real `ProjectFileService`/`ProjectFileServiceImpl` exists (MinIO-backed `getFileTree`/`getFileContent`/`saveFile`) — but nothing above has been repointed at it; it's only used internally by `ChatController`'s AI chat flow (see below). See [Project Status](../project-status.md#project-status) "Known gaps".
+
 ## BillingController (no `@RequestMapping` prefix — full paths on each method)
 
 | Method | Path | Request | Response | Notes |
@@ -58,9 +60,16 @@ An earlier version of this controller had a `/webhooks/payment` handler and a `P
 | GET | `/api/usage/today` | — | `UsageTodayResponse` (`tokensUsed`, `tokensLimit`, `previewsRunning`, `previewsLimit`) | Stub |
 | GET | `/api/usage/limits` | — | `PlanLimitsResponse` (`planName`, `maxTokensPerDay`, `maxProjects`, `unlimitedAi`) | Stub |
 
+## ChatController (`/api/chat`)
+
+| Method | Path | Request | Response | Notes |
+|---|---|---|---|---|
+| POST | `/api/chat/stream` | `ChatRequest` (`message`, `projectId`) | SSE stream of `StreamResponse` (`text`) | **Real**, 2026-05-16 — delegates to `AiGenerationService.streamResponse`, gated by `@PreAuthorize("@security.canEditProject(#projectId)")` on the service method (not the controller). `ChatRequest` has **no** `@Valid`/Bean Validation constraints at all, breaking the "every request DTO has explicit constraints" convention every other request DTO follows — see [Request Validation](#request-validation) |
+| GET | `/api/chat/projects/{projectId}` | — | `List<ChatResponse>` | **Real**, 2026-05-16 — `ChatService.getProjectChatHistory`. Not `@PreAuthorize`-gated at all (unlike the stream endpoint) — only implicitly scoped by looking up `(projectId, callerId)`'s `ChatSession` via `getReferenceById`, which doesn't verify the caller is still a project member the way `@security.canViewProject` would |
+
 ## Request Validation
 
-All 6 request DTOs (every DTO actually used as a `@RequestBody`) carry Bean Validation constraints; response DTOs never do. Every constraint has an explicit `message`, matching the convention used in the payflux repo.
+6 of the 7 request DTOs (every DTO actually used as a `@RequestBody`) carry Bean Validation constraints; response DTOs never do. Every constraint has an explicit `message`, matching the convention used in the payflux repo. The exception is `ChatRequest` (2026-05-16, see [ChatController](#chatcontroller-apichat)) — no `@Valid` on the controller parameter, no constraints on the record itself, so a blank `message` or missing `projectId` reaches the service layer unchecked.
 
 | DTO | Field | Constraints |
 |---|---|---|
